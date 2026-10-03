@@ -366,6 +366,8 @@ function FactoryService.ClaimFactory(self: FactoryService, plr: Player, factoryM
 		warn(factory.Id, "is missing PlayerSpawn SpawnLocation!")
 	end
 
+	GameEvents.FactoryClaimed:Fire(plr, factory.Id)
+
 	print(plr.Name, "claimed", factory.Id)
 
 	return factory
