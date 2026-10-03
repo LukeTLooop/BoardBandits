@@ -10,6 +10,7 @@ local EconomyService = require(ServerScriptService.Services.EconomyService)
 local CustomerService = require(ServerScriptService.Services.CustomerService)
 local TheftService = require(ServerScriptService.Services.TheftService)
 local WorkerInventoryService = require(ServerScriptService.Services.WorkerInventoryService)
+local WorkerService = require(ServerScriptService.Services.WorkerService)
 local ProgressionService = require(ServerScriptService.Services.ProgressionService)
 local ProductionService = require(ServerScriptService.Services.ProductionService)
 
@@ -32,6 +33,7 @@ type FactoryServiceData = {
 	Customers: CustomerService.CustomerService,
 	Theft: TheftService.TheftService,
 	WorkerInventory: WorkerInventoryService.WorkerInventoryService,
+	Workers: WorkerService.WorkerService,
 	Progression: ProgressionService.ProgressionService,
 	Production: ProductionService.ProductionService,
 
@@ -55,6 +57,7 @@ function FactoryService.new(
 	customers: CustomerService.CustomerService,
 	theft: TheftService.TheftService,
 	workerInventory: WorkerInventoryService.WorkerInventoryService,
+	workers: WorkerService.WorkerService,
 	progression: ProgressionService.ProgressionService,
 	production: ProductionService.ProductionService
 ): FactoryService
@@ -73,6 +76,7 @@ function FactoryService.new(
 		Customers = customers,
 		Theft = theft,
 		WorkerInventory = workerInventory,
+		Workers = workers,
 		Progression = progression,
 		Production = production,
 
@@ -248,6 +252,10 @@ function FactoryService.Start(self: FactoryService): ()
 	GameEvents.ProfileLoaded:Connect(function(plr: Player, _profile: PlayerDataTypes.PlayerData)
 		print("[FactoryService]", plr.Name, "profile ready")
 	end)
+
+	GameEvents.ProfileRemoving:Connect(function(plr: Player, _profile: PlayerDataTypes.PlayerData)
+		self:ReleaseFactory(plr)
+	end)
 end
 
 -- Setup Claim --
@@ -371,6 +379,100 @@ function FactoryService.ClaimFactory(self: FactoryService, plr: Player, factoryM
 	print(plr.Name, "claimed", factory.Id)
 
 	return factory
+end
+
+function FactoryService.CleanupFactoryInteractions(
+	self: FactoryService,
+	factory: Factory.Factory
+): ()
+	for _, slotFolder in factory.SlotFolders do
+		local placementPart = slotFolder:FindFirstChild("PlacementPart")
+		if not placementPart or not placementPart:IsA("BasePart") then
+			continue
+		end
+
+		local prompt = placementPart:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt:Destroy()
+		end
+	end
+
+	local collector = factory.Model:FindFirstChild("MoneyCollector")
+	if collector and collector:IsA("BasePart") then
+		local prompt = collector:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt:Destroy()
+		end
+	end
+end
+
+function FactoryService.ReleaseFactory(
+	self: FactoryService,
+	plr: Player
+): boolean
+	local factory = self.FactoriesByOwner[plr.UserId]
+	if not factory then
+		return false
+	end
+
+	-- Stop gameplay systems before removing runtime state.
+	self.Production:CancelManualProduction(plr)
+	self.Customers:StopFactory(factory.Id)
+	self.Theft:UnregisterFactory(factory.Id)
+
+	-- Destroy runtime workers without calling Factory removal methods.
+	-- Persistent SlotId -> WorkerId assignments must remain intact for save/hydration.
+	-- Carried workers are preserved for the dedicated theft lifecycle cleanup pass.
+	self.Workers:DestroyWorkersForOwner(
+		plr.UserId,
+		true
+	)
+
+	table.clear(factory.Workers)
+
+	self:CleanupFactoryInteractions(factory)
+
+	-- Remove runtime lookup state.
+	self.FactoriesByOwner[plr.UserId] = nil
+	self.FactoriesById[factory.Id] = nil
+	self.ClaimedModels[factory.Model] = nil
+
+	plr:SetAttribute("ClaimedFactoryId", nil)
+
+	local factoryModel = factory.Model
+	factoryModel:SetAttribute("OwnerUserId", nil)
+
+	local territory = factoryModel:FindFirstChild("Territory")
+	if territory and territory:IsA("BasePart") then
+		territory:SetAttribute("FactoryId", nil)
+		territory:SetAttribute("OwnerUserId", nil)
+	end
+
+	local spawnpoint = factoryModel:FindFirstChild("PlayerSpawn")
+	if spawnpoint and spawnpoint:IsA("SpawnLocation") then
+		spawnpoint.Enabled = false
+
+		if plr.RespawnLocation == spawnpoint then
+			plr.RespawnLocation = nil
+		end
+	end
+
+	local claimPart = factoryModel:FindFirstChild("ClaimPart")
+	if claimPart and claimPart:IsA("BasePart") then
+		local prompt = claimPart:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt.Enabled = true
+		end
+	end
+
+	GameEvents.FactoryReleased:Fire(
+		plr.UserId,
+		factory.Id
+	)
+
+	print(plr.Name, "released", factory.Id)
+
+	return true
 end
 
 function FactoryService.SetupTerritory(self: FactoryService, factory: Factory.Factory): ()
