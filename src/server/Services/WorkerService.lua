@@ -75,12 +75,20 @@ function WorkerService.DestroyWorker(self: WorkerService, workerId: string): ()
 	self.Workers[workerId] = nil
 end
 
-function WorkerService.DestroyWorkersForOwner(self: WorkerService, ownerUserId: number): ()
+function WorkerService.DestroyWorkersForOwner(
+	self: WorkerService,
+	ownerUserId: number,
+	preserveCarried: boolean?
+): ()
 	local workerIds: { string } = {}
 
-	-- Snapshot
+	-- Snapshot first because DestroyWorker mutates self.Workers.
 	for workerId, worker in self.Workers do
 		if worker.OwnerUserId ~= ownerUserId then
+			continue
+		end
+
+		if preserveCarried and worker.State == "Carried" then
 			continue
 		end
 

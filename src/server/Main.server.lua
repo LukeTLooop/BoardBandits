@@ -40,6 +40,7 @@ local factoryService: FactoryService.FactoryService = FactoryService.new(
 	customerService,
 	theftService,
 	workerInventoryService,
+	workerService,
 	progressionService,
 	productionService
 )
