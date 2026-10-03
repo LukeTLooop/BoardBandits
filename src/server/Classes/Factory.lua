@@ -418,7 +418,15 @@ function Factory.TrySellItem(self: Factory, itemId: string): boolean
 		return false
 	end
 
-	self:AddPendingCash(itemDefinition.SellPrice)
+	local cashEarned = itemDefinition.SellPrice
+
+	self:AddPendingCash(cashEarned)
+
+	GameEvents.ItemSold:Fire(
+		self.OwnerUserId,
+		itemId,
+		cashEarned
+	)
 
 	return true
 end
