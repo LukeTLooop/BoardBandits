@@ -240,9 +240,11 @@ function ProductionService.CancelManualProduction(
 	plr: Player
 ): ()
 	local job = self.ActiveJobs[plr.UserId]
-	if not job then return end
+	if not job then
+		return
+	end
 
-	self.ActiveManualJobs[plr.UserId] = nil
+	self.ActiveJobs[plr.UserId] = nil
 
 	print(
 		"[PRODUCTION]",
@@ -256,7 +258,9 @@ end
 function ProductionService.Start(
 	self: ProductionService
 ): ()
-	if self.Started then return end
+	if self.Started then
+		return
+	end
 	self.Started = true
 
 	-- Leaving
