@@ -84,7 +84,7 @@ function PlayerDataStore.Load(
 					
 					if type(jobId) == "string" and
 						jobId ~= game.JobId and
-						type(updatedAt) ~= "number" and
+						type(updatedAt) == "number" and
 						now - updatedAt < SESSION_TIMEOUT then
 						sessionLocked = true
 						return nil
