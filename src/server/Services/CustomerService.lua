@@ -82,6 +82,38 @@ function CustomerService.StartFactory(
 	end)
 end
 
+function CustomerService.StopFactory(
+	self: CustomerService,
+	factoryId: string
+): ()
+	local state = self.FactoryQueues[factoryId]
+	if not state then
+		return
+	end
+
+	state.Running = false
+	state.Processing = false
+
+	local customersToDestroy: {Customer.Customer} = {}
+
+	if state.ActiveCustomer then
+		table.insert(customersToDestroy, state.ActiveCustomer)
+	end
+
+	for _, customer in state.Waiting do
+		table.insert(customersToDestroy, customer)
+	end
+
+	table.clear(state.Waiting)
+	state.ActiveCustomer = nil
+
+	self.FactoryQueues[factoryId] = nil
+
+	for _, customer in customersToDestroy do
+		self:DestroyCustomer(customer)
+	end
+end
+
 function CustomerService.RepositionQueue(
 	self: CustomerService,
 	state: FactoryQueueState
@@ -100,15 +132,23 @@ end
 
 function CustomerService.ProcessCustomerAtCounter(
 	self: CustomerService,
-	factory: Factory.Factory,
+	state: FactoryQueueState,
 	customer: Customer.Customer
 ): ()
+	local factory = state.Factory
+
 	customer:SetStatus("Ordering...")
 
 	-- Walk to counter
 	local reachedCounter = customer:MoveTo(
 		factory.CustomerCounter.Position
 	)
+
+	if not state.Running then
+		self:DestroyCustomer(customer)
+
+		return
+	end
 
 	if not reachedCounter then
 		print('didnt reach counter')
@@ -179,7 +219,7 @@ function CustomerService.ProcessCustomerAtCounter(
 	)
 	
 	-- Try to purchase until patience expires
-	while customer.TimeWaited < customer.MaxWaitTime do
+	while state.Running and customer.TimeWaited < customer.MaxWaitTime do
 		if factory:TrySellItem(desiredItem) then
 			customer.HasPurchased = true
 			customer:SetStatus("Thanks! 🛹")
@@ -198,6 +238,12 @@ function CustomerService.ProcessCustomerAtCounter(
 		customer.TimeWaited += customerDefinition.RetryInterval
 	end
 	
+	if not state.Running then
+		self:DestroyCustomer(customer)
+
+		return
+	end
+
 	-- Purchase failed because patience expired
 	if not customer.HasPurchased then
 		customer:SetStatus(`No {displayName}?\nNevermind...`)
@@ -231,7 +277,7 @@ function CustomerService.ProcessQueue(
 		self:RepositionQueue(state)
 		
 		self:ProcessCustomerAtCounter(
-			state.Factory,
+			state,
 			customer
 		)
 		
