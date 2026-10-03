@@ -1,0 +1,60 @@
+{
+    "files.associations": {
+        "*.lua": "luau",
+        "*.luau": "luau"
+    },
+
+    "[luau]": {
+        "editor.defaultFormatter": "JohnnyMorganz.stylua",
+        "editor.formatOnSave": true,
+        
+        "editor.acceptSuggestionOnCommitCharacter": false,
+        "editor.tabCompletion": "off"
+    },
+
+    "editor.formatOnSave": true,
+
+    "editor.quickSuggestions": {
+        "other": true,
+        "comments": false,
+        "strings": false
+    },
+
+    "editor.quickSuggestionsDelay": 0,
+    "editor.suggestOnTriggerCharacters": true,
+    "editor.parameterHints.enabled": true,
+
+    "editor.suggest.showMethods": true,
+    "editor.suggest.showFunctions": true,
+    "editor.suggest.showVariables": true,
+    "editor.suggest.showClasses": true,
+    "editor.suggest.showFields": true,
+    "editor.suggest.showProperties": true,
+
+    "editor.suggestSelection": "first",
+    "editor.autoIndent": "full",
+
+    "editor.hover.enabled": "on",
+    "editor.hover.delay": 200,
+    "editor.hover.sticky": true,
+
+    "luau-lsp.sourcemap.enabled": true,
+    "luau-lsp.sourcemap.autogenerate": true,
+    "luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
+    "luau-lsp.sourcemap.sourcemapFile": "sourcemap.json",
+    "luau-lsp.sourcemap.includeNonScripts": true,
+
+    "luau-lsp.diagnostics.strictDatamodelTypes": true,
+
+    "luau-lsp.studioPlugin.enabled": true,
+    "luau-lsp.studioPlugin.port": 3667,
+
+    "luau-lsp.completion.addParentheses": true,
+    "luau-lsp.completion.fillCallArguments": false,
+    "luau-lsp.completion.addTabstopAfterParentheses": false,
+    "luau-lsp.completion.anonymousAutofilledFunction.enabled": false,
+    "luau-lsp.completion.autocompleteEnd": true,
+
+    "chat.disableAIFeatures": true,
+    "editor.inlineSuggest.enabled": false
+}
