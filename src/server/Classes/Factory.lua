@@ -5,14 +5,15 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local EconomyService = require(ServerScriptService.Services.EconomyService)
+
+-- Classes --
+local Worker = require(ServerScriptService.Classes.Worker)
+
 -- Config --
 local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
 local TemperConfig = require(ReplicatedStorage.Shared.Config.TemperConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
-
--- Types --
-local ServiceTypes = require(ServerScriptService.Types.ServiceTypes)
-local ClassTypes = require(ServerScriptService.Types.ClassTypes)
 
 -- Framework --
 local GameEvents = require(ServerScriptService.Framework.GameEvents)
@@ -22,20 +23,20 @@ local Factory = {}
 Factory.__index = Factory
 
 -- Types --
-export type ProductionCallback = (worker: ClassTypes.Worker, itemId: string, amount: number) -> ()
+export type ProductionCallback = (worker: Worker.Worker, itemId: string, amount: number) -> ()
 
 type FactoryData = {
 	Id: string,
 	Model: Model,
 	OwnerUserId: number,
 
-	Economy: ServiceTypes.EconomyService,
+	Economy: EconomyService.EconomyService,
 
 	Inventory: { [string]: number },
 	PendingCash: number,
 
 	Spawns: { BasePart },
-	Workers: { [number]: ClassTypes.Worker? },
+	Workers: { [number]: Worker.Worker? },
 
 	SlotFolders: { Folder },
 	SlotIds: { string },
@@ -52,7 +53,7 @@ type FactoryData = {
 
 export type Factory = typeof(setmetatable({} :: FactoryData, Factory))
 
-function Factory.new(model: Model, ownerUserId: number, economy: ServiceTypes.EconomyService): Factory
+function Factory.new(model: Model, ownerUserId: number, economy: EconomyService.EconomyService): Factory
 	-- Configure customer data prior to assigning data
 	local customerSpawn = model:WaitForChild("CustomerSpawn")
 	local customerCounter = model:WaitForChild("CustomerCounter")
@@ -214,7 +215,7 @@ function Factory.new(model: Model, ownerUserId: number, economy: ServiceTypes.Ec
 end
 
 -- Workers --
-function Factory.PlaceWorker(self: Factory, worker: ClassTypes.Worker): boolean
+function Factory.PlaceWorker(self: Factory, worker: Worker.Worker): boolean
 	for slotIndex = 1, #self.Spawns do
 		if self.Workers[slotIndex] ~= nil then
 			continue
@@ -226,7 +227,7 @@ function Factory.PlaceWorker(self: Factory, worker: ClassTypes.Worker): boolean
 	return false
 end
 
-function Factory.PlaceWorkerInSlot(self: Factory, worker: ClassTypes.Worker, slotIndex: number): boolean
+function Factory.PlaceWorkerInSlot(self: Factory, worker: Worker.Worker, slotIndex: number): boolean
 	-- Worker already assigned somewhere else
 	if worker.FactoryId ~= nil then
 		return false
@@ -308,7 +309,7 @@ function Factory.PlaceWorkerInSlot(self: Factory, worker: ClassTypes.Worker, slo
 	return true
 end
 
-function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): ClassTypes.Worker?
+function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): Worker.Worker?
 	local worker = self.Workers[slotIndex]
 	if not worker then
 		return nil
@@ -340,7 +341,7 @@ function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): ClassTy
 	return worker
 end
 
-function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): ClassTypes.Worker?
+function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): Worker.Worker?
 	local worker = self:DetachWorkerFromSlot(slotIndex)
 
 	if not worker then
@@ -360,7 +361,7 @@ function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): ClassTy
 end
 
 -- Theft --
-function Factory.ConfigureStealPrompt(self: Factory, worker: ClassTypes.Worker, slotIndex: number): ()
+function Factory.ConfigureStealPrompt(self: Factory, worker: Worker.Worker, slotIndex: number): ()
 	local root = worker:GetRootPart()
 	if not root then
 		warn(worker.WorkerType, "has no root part for steal prompt!")
@@ -622,11 +623,11 @@ function Factory.GetSlotCount(self: Factory): number
 	return #self.Spawns
 end
 
-function Factory.GetWorkerInSlot(self: Factory, slotIndex: number): ClassTypes.Worker?
+function Factory.GetWorkerInSlot(self: Factory, slotIndex: number): Worker.Worker?
 	return self.Workers[slotIndex]
 end
 
-function Factory.SetProductionCallback(self: Factory, callback: (ClassTypes.Worker, string, number) -> ()): ()
+function Factory.SetProductionCallback(self: Factory, callback: (Worker.Worker, string, number) -> ()): ()
 	self.ProductionCallback = callback
 end
 

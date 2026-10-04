@@ -1,10 +1,8 @@
 --!strict
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- Services --
 local ServerScriptService = game:GetService("ServerScriptService")
 
--- Services --
 local EconomyService = require(ServerScriptService.Services.EconomyService)
 local WorkerService = require(ServerScriptService.Services.WorkerService)
 local WorkerInventoryService = require(ServerScriptService.Services.WorkerInventoryService)
@@ -20,6 +18,7 @@ local StatsService = require(ServerScriptService.Services.StatsService)
 local ProgressionService = require(ServerScriptService.Services.ProgressionService)
 local ProductionService = require(ServerScriptService.Services.ProductionService)
 local FactoryStateService = require(ServerScriptService.Services.FactoryStateService)
+local HUDService = require(ServerScriptService.Services.HUDService)
 
 -- Construct --
 local playerDataService: PlayerDataService.PlayerDataService = PlayerDataService.new()
@@ -44,6 +43,7 @@ local factoryService: FactoryService.FactoryService = FactoryService.new(
 	progressionService,
 	productionService
 )
+local hudService: HUDService.HUDService = HUDService.new(playerDataService, factoryService)
 local workerShopService: WorkerShopService.WorkerShopService =
 	WorkerShopService.new(economyService, workerInventoryService, progressionService, factoryService)
 local workerRemoteService: WorkerRemoteService.WorkerRemoteService = WorkerRemoteService.new(
@@ -65,6 +65,7 @@ progressionService:Start()
 productionService:Start()
 workerService:Start()
 factoryStateService:Start()
+hudService:Start()
 theftService:Start()
 workerShopService:Start()
 workerRemoteService:Start()

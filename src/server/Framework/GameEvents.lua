@@ -15,6 +15,8 @@ type GameEventsType = {
 
 	ProfileRemoving: Signal.Signal<Player, PlayerDataTypes.PlayerData>,
 
+	PlayerCashChanged: Signal.Signal<Player, number>,
+
 	-- Factory lifecycle
 	FactoryClaimed: Signal.Signal<Player, string>,
 
@@ -59,6 +61,8 @@ local GameEvents: GameEventsType = {
 	-- Player lifecycle
 	ProfileLoaded = Signal.new(),
 	ProfileRemoving = Signal.new(),
+
+	PlayerCashChanged = Signal.new(),
 
 	-- Factory lifecycle
 	FactoryClaimed = Signal.new(),

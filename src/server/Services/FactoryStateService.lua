@@ -5,11 +5,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+local PlayerDataService = require(ServerScriptService.Services.PlayerDataService)
+local FactoryService = require(ServerScriptService.Services.FactoryService)
+local WorkerInventoryService = require(ServerScriptService.Services.WorkerInventoryService)
+local WorkerService = require(ServerScriptService.Services.WorkerService)
+
 -- Config --
 local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
-
--- Types --
-local ServiceTypes = require(ServerScriptService.Types.ServiceTypes)
 
 -- Framework --
 local GameEvents = require(ServerScriptService.Framework.GameEvents)
@@ -20,10 +22,10 @@ FactoryStateService.__index = FactoryStateService
 
 -- Types --
 type FactoryStateServiceData = {
-	PlayerData: ServiceTypes.PlayerDataService,
-	Factories: ServiceTypes.FactoryService,
-	Inventory: ServiceTypes.WorkerInventoryService,
-	Workers: ServiceTypes.WorkerService,
+	PlayerData: PlayerDataService.PlayerDataService,
+	Factories: FactoryService.FactoryService,
+	Inventory: WorkerInventoryService.WorkerInventoryService,
+	Workers: WorkerService.WorkerService,
 
 	HydratedFactories: {
 		[number]: string,
@@ -36,10 +38,10 @@ export type FactoryStateService = typeof(setmetatable({} :: FactoryStateServiceD
 
 -- Constructor --
 function FactoryStateService.new(
-	playerData: ServiceTypes.PlayerDataService,
-	factories: ServiceTypes.FactoryService,
-	inventory: ServiceTypes.WorkerInventoryService,
-	workers: ServiceTypes.WorkerService
+	playerData: PlayerDataService.PlayerDataService,
+	factories: FactoryService.FactoryService,
+	inventory: WorkerInventoryService.WorkerInventoryService,
+	workers: WorkerService.WorkerService
 ): FactoryStateService
 	local data: FactoryStateServiceData = {
 		PlayerData = playerData,

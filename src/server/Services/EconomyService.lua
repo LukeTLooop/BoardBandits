@@ -4,20 +4,22 @@
 -- Services --
 local ServerScriptService = game:GetService("ServerScriptService")
 
--- Types --
-local ServiceTypes = require(ServerScriptService.Types.ServiceTypes)
+local PlayerDataService = require(ServerScriptService.Services.PlayerDataService)
+
+-- Framework --
+local GameEvents = require(ServerScriptService.Framework.GameEvents)
 
 -- Service --
 local EconomyService = {}
 EconomyService.__index = EconomyService
 
 type EconomyServiceData = {
-	PlayerData: ServiceTypes.PlayerDataService,
+	PlayerData: PlayerDataService.PlayerDataService,
 }
 
 export type EconomyService = typeof(setmetatable({} :: EconomyServiceData, EconomyService))
 
-function EconomyService.new(playerData: ServiceTypes.PlayerDataService): EconomyService
+function EconomyService.new(playerData: PlayerDataService.PlayerDataService): EconomyService
 	local data: EconomyServiceData = {
 		PlayerData = playerData,
 	}
@@ -37,6 +39,9 @@ function EconomyService.AddCash(self: EconomyService, plr: Player, amount: numbe
 	local profile = self.PlayerData:RequireProfile(plr)
 	profile.Cash += amount
 
+	-- Broadcast cash changed
+	GameEvents.PlayerCashChanged:Fire(plr, profile.Cash)
+
 	return profile.Cash
 end
 
@@ -51,6 +56,9 @@ function EconomyService.SpendCash(self: EconomyService, plr: Player, amount: num
 		return false
 	end
 	profile.Cash -= amount
+
+	-- Broadcast cash changed
+	GameEvents.PlayerCashChanged:Fire(plr, profile.Cash)
 
 	return true
 end

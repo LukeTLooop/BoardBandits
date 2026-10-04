@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local WorkerInventoryService = require(ServerScriptService.Services.WorkerInventoryService)
+local EconomyService = require(ServerScriptService.Services.EconomyService)
 
 -- Classes --
 local Factory = require(ServerScriptService.Classes.Factory)
@@ -16,9 +17,6 @@ local Worker = require(ServerScriptService.Classes.Worker)
 
 -- Config --
 local TemperConfig = require(ReplicatedStorage.Shared.Config.TemperConfig)
-
--- Types --
-local ServiceTypes = require(ServerScriptService.Types.ServiceTypes)
 
 -- Framework --
 local GameEvents = require(ServerScriptService.Framework.GameEvents)
@@ -66,7 +64,7 @@ type CarriedWorkerData = {
 type TheftServiceData = {
 	Inventory: WorkerInventoryService.WorkerInventoryService,
 	Factories: { [string]: Factory.Factory },
-	Economy: ServiceTypes.EconomyService,
+	Economy: EconomyService.EconomyService,
 	CarriedWorkers: { [number]: CarriedWorkerData },
 	CarriedFolder: Folder,
 	Started: boolean,
@@ -77,7 +75,7 @@ export type TheftService = typeof(setmetatable({} :: TheftServiceData, TheftServ
 -- Constructor --
 function TheftService.new(
 	inventory: WorkerInventoryService.WorkerInventoryService,
-	economy: ServiceTypes.EconomyService
+	economy: EconomyService.EconomyService
 ): TheftService
 	local existing = workspace:FindFirstChild("CarriedWorkers")
 	local carriedFolder: Folder

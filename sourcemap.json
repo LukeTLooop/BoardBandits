@@ -2170,6 +2170,13 @@
                   "filePaths": [
                     "src/shared/Types/WorkerUpgradeTypes.lua"
                   ]
+                },
+                {
+                  "name": "HUDTypes",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Types/HUDTypes.lua"
+                  ]
                 }
               ]
             },
@@ -2189,6 +2196,13 @@
                   "className": "ModuleScript",
                   "filePaths": [
                     "src/shared/Utility/WorkerFilterUtil.lua"
+                  ]
+                },
+                {
+                  "name": "NumberFormatUtil",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Utility/NumberFormatUtil.lua"
                   ]
                 }
               ]
@@ -2375,6 +2389,13 @@
               "className": "ModuleScript",
               "filePaths": [
                 "src/server/Services/WorkerUpgradeService.lua"
+              ]
+            },
+            {
+              "name": "HUDService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/HUDService.lua"
               ]
             }
           ]
