@@ -10,12 +10,6 @@ local sharedTypes = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types
 local WorkerTypes = require(sharedTypes:WaitForChild("WorkerTypes"))
 local FactoryDataTypes = require(sharedTypes:WaitForChild("FactoryDataTypes"))
 
--- Factory
-export type FactoryData = {
-	FactoryId: string?,
-	Upgrades: { [string]: boolean },
-}
-
 -- Stats
 export type PlayerStats = {
 	WorkersPurchased: number,

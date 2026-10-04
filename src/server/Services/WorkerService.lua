@@ -1,12 +1,18 @@
 --!strict
 -- Worker Service
 
+-- Services --
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 
-local WorkerInventoryService = require(ServerScriptService.Services.WorkerInventoryService)
+-- Classes --
 local Worker = require(ServerScriptService.Classes.Worker)
 
+-- Types --
+local WorkerTypes = require(ReplicatedStorage.Shared.Types.WorkerTypes)
+
+-- Service --
 local WorkerService = {}
 WorkerService.__index = WorkerService
 
@@ -36,7 +42,7 @@ end
 
 function WorkerService.CreateWorkerFromOwnedData(
 	self: WorkerService,
-	workerData: WorkerInventoryService.OwnedWorkerData,
+	workerData: WorkerTypes.OwnedWorkerData,
 	ownerUserId: number
 ): Worker.Worker
 	-- Don't create two runtime versions of same worker
@@ -75,11 +81,7 @@ function WorkerService.DestroyWorker(self: WorkerService, workerId: string): ()
 	self.Workers[workerId] = nil
 end
 
-function WorkerService.DestroyWorkersForOwner(
-	self: WorkerService,
-	ownerUserId: number,
-	preserveCarried: boolean?
-): ()
+function WorkerService.DestroyWorkersForOwner(self: WorkerService, ownerUserId: number, preserveCarried: boolean?): ()
 	local workerIds: { string } = {}
 
 	-- Snapshot first because DestroyWorker mutates self.Workers.

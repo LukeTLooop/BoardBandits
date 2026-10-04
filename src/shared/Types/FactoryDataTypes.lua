@@ -31,6 +31,11 @@ export type FactoryData = {
 	-- Factory cash
 	PendingCash: number,
 
+	-- Factory inventory
+	Inventory: {
+		[string]: number,
+	},
+
 	-- PersistentSlotId -> WorkerId
 	WorkerAssignments: {
 		[string]: string,

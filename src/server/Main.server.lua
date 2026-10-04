@@ -34,7 +34,7 @@ local workerPlacementService: WorkerPlacementService.WorkerPlacementService =
 local customerService: CustomerService.CustomerService = CustomerService.new()
 local workerUpgradeService: WorkerUpgradeService.WorkerUpgradeService =
 	WorkerUpgradeService.new(economyService, workerInventoryService, workerService)
-local theftService: TheftService.TheftService = TheftService.new(workerInventoryService)
+local theftService: TheftService.TheftService = TheftService.new(workerInventoryService, economyService)
 local factoryService: FactoryService.FactoryService = FactoryService.new(
 	economyService,
 	customerService,

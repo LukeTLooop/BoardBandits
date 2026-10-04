@@ -8,6 +8,9 @@ local ServerScriptService = game:GetService("ServerScriptService")
 -- Config --
 local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
 
+-- Types --
+local ServiceTypes = require(ServerScriptService.Types.ServiceTypes)
+
 -- Framework --
 local GameEvents = require(ServerScriptService.Framework.GameEvents)
 
@@ -17,10 +20,10 @@ FactoryStateService.__index = FactoryStateService
 
 -- Types --
 type FactoryStateServiceData = {
-	PlayerData: any,
-	Factories: any,
-	Inventory: any,
-	Workers: any,
+	PlayerData: ServiceTypes.PlayerDataService,
+	Factories: ServiceTypes.FactoryService,
+	Inventory: ServiceTypes.WorkerInventoryService,
+	Workers: ServiceTypes.WorkerService,
 
 	HydratedFactories: {
 		[number]: string,
@@ -32,7 +35,12 @@ type FactoryStateServiceData = {
 export type FactoryStateService = typeof(setmetatable({} :: FactoryStateServiceData, FactoryStateService))
 
 -- Constructor --
-function FactoryStateService.new(playerData: any, factories: any, inventory: any, workers: any): FactoryStateService
+function FactoryStateService.new(
+	playerData: ServiceTypes.PlayerDataService,
+	factories: ServiceTypes.FactoryService,
+	inventory: ServiceTypes.WorkerInventoryService,
+	workers: ServiceTypes.WorkerService
+): FactoryStateService
 	local data: FactoryStateServiceData = {
 		PlayerData = playerData,
 		Factories = factories,
@@ -68,6 +76,9 @@ function FactoryStateService.HydrateFactory(self: FactoryStateService, plr: Play
 
 	-- Restore factory cash
 	factory:LoadPendingCash(factoryData.PendingCash)
+
+	-- Restore factory inventory
+	factory:LoadInventory(factoryData.Inventory)
 
 	-- Restore saved worker assignments
 	local staleAssignments: { string } = {}
@@ -165,6 +176,20 @@ function FactoryStateService.Start(self: FactoryStateService): ()
 		end
 
 		profile.Factory.PendingCash = newPendingCash
+	end)
+
+	-- Runtime inventory -> profile inventory
+	GameEvents.FactoryInventoryChanged:Connect(function(ownerUserId: number, itemId: string, newAmount: number)
+		local profile = self.PlayerData:GetProfileByUserId(ownerUserId)
+		if not profile then
+			return
+		end
+
+		if newAmount <= 0 then
+			profile.Factory.Inventory[itemId] = nil
+		else
+			profile.Factory.Inventory[itemId] = newAmount
+		end
 	end)
 
 	-- Runtime placement -> profile assignment

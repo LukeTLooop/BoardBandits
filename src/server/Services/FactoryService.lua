@@ -381,10 +381,7 @@ function FactoryService.ClaimFactory(self: FactoryService, plr: Player, factoryM
 	return factory
 end
 
-function FactoryService.CleanupFactoryInteractions(
-	self: FactoryService,
-	factory: Factory.Factory
-): ()
+function FactoryService.CleanupFactoryInteractions(self: FactoryService, factory: Factory.Factory): ()
 	for _, slotFolder in factory.SlotFolders do
 		local placementPart = slotFolder:FindFirstChild("PlacementPart")
 		if not placementPart or not placementPart:IsA("BasePart") then
@@ -399,17 +396,17 @@ function FactoryService.CleanupFactoryInteractions(
 
 	local collector = factory.Model:FindFirstChild("MoneyCollector")
 	if collector and collector:IsA("BasePart") then
-		local prompt = collector:FindFirstChildOfClass("ProximityPrompt")
-		if prompt then
-			prompt:Destroy()
+		for _, child in collector:GetChildren() do
+			if not child:IsA("ProximityPrompt") then
+				continue
+			end
+
+			child:Destroy()
 		end
 	end
 end
 
-function FactoryService.ReleaseFactory(
-	self: FactoryService,
-	plr: Player
-): boolean
+function FactoryService.ReleaseFactory(self: FactoryService, plr: Player): boolean
 	local factory = self.FactoriesByOwner[plr.UserId]
 	if not factory then
 		return false
@@ -418,15 +415,13 @@ function FactoryService.ReleaseFactory(
 	-- Stop gameplay systems before removing runtime state.
 	self.Production:CancelManualProduction(plr)
 	self.Customers:StopFactory(factory.Id)
+	self.Theft:ReturnWorkersOwnedByUserId(plr.UserId)
 	self.Theft:UnregisterFactory(factory.Id)
 
 	-- Destroy runtime workers without calling Factory removal methods.
 	-- Persistent SlotId -> WorkerId assignments must remain intact for save/hydration.
 	-- Carried workers are preserved for the dedicated theft lifecycle cleanup pass.
-	self.Workers:DestroyWorkersForOwner(
-		plr.UserId,
-		true
-	)
+	self.Workers:DestroyWorkersForOwner(plr.UserId, true)
 
 	table.clear(factory.Workers)
 
@@ -465,10 +460,7 @@ function FactoryService.ReleaseFactory(
 		end
 	end
 
-	GameEvents.FactoryReleased:Fire(
-		plr.UserId,
-		factory.Id
-	)
+	GameEvents.FactoryReleased:Fire(plr.UserId, factory.Id)
 
 	print(plr.Name, "released", factory.Id)
 

@@ -5,15 +5,14 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local EconomyService = require(ServerScriptService.Services.EconomyService)
-
--- Classes --
-local Worker = require(ServerScriptService.Classes.Worker)
-
 -- Config --
 local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
 local TemperConfig = require(ReplicatedStorage.Shared.Config.TemperConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
+
+-- Types --
+local ServiceTypes = require(ServerScriptService.Types.ServiceTypes)
+local ClassTypes = require(ServerScriptService.Types.ClassTypes)
 
 -- Framework --
 local GameEvents = require(ServerScriptService.Framework.GameEvents)
@@ -23,20 +22,20 @@ local Factory = {}
 Factory.__index = Factory
 
 -- Types --
-export type ProductionCallback = (worker: Worker.Worker, itemId: string, amount: number) -> ()
+export type ProductionCallback = (worker: ClassTypes.Worker, itemId: string, amount: number) -> ()
 
 type FactoryData = {
 	Id: string,
 	Model: Model,
 	OwnerUserId: number,
 
-	Economy: EconomyService.EconomyService,
+	Economy: ServiceTypes.EconomyService,
 
 	Inventory: { [string]: number },
 	PendingCash: number,
 
 	Spawns: { BasePart },
-	Workers: { [number]: Worker.Worker? },
+	Workers: { [number]: ClassTypes.Worker? },
 
 	SlotFolders: { Folder },
 	SlotIds: { string },
@@ -53,7 +52,7 @@ type FactoryData = {
 
 export type Factory = typeof(setmetatable({} :: FactoryData, Factory))
 
-function Factory.new(model: Model, ownerUserId: number, economy: EconomyService.EconomyService): Factory
+function Factory.new(model: Model, ownerUserId: number, economy: ServiceTypes.EconomyService): Factory
 	-- Configure customer data prior to assigning data
 	local customerSpawn = model:WaitForChild("CustomerSpawn")
 	local customerCounter = model:WaitForChild("CustomerCounter")
@@ -174,6 +173,7 @@ function Factory.new(model: Model, ownerUserId: number, economy: EconomyService.
 		prompt.Parent = collector
 	end
 
+	prompt.Name = "CollectCashPrompt"
 	prompt.ActionText = "Collect"
 	prompt.ObjectText = "Factory Cash"
 	prompt.HoldDuration = 0
@@ -188,11 +188,33 @@ function Factory.new(model: Model, ownerUserId: number, economy: EconomyService.
 		self:Collect(plr)
 	end)
 
+	-- Create theft interaction
+	local existingStealPrompt = collector:FindFirstChild("StealCashPrompt")
+	local stealPrompt: ProximityPrompt
+	if existingStealPrompt and existingStealPrompt:IsA("ProximityPrompt") then
+		stealPrompt = existingStealPrompt
+	else
+		stealPrompt = Instance.new("ProximityPrompt")
+		stealPrompt.Name = "StealCashPrompt"
+		stealPrompt.Parent = collector
+	end
+
+	stealPrompt.ActionText = "Steal Cash"
+	stealPrompt.ObjectText = "Factory Cash"
+	stealPrompt.HoldDuration = 2
+	stealPrompt.MaxActivationDistance = 10
+	stealPrompt.ClickablePrompt = false
+	stealPrompt.RequiresLineOfSight = true
+
+	stealPrompt:SetAttribute("PromptAccess", "Steal")
+	stealPrompt:SetAttribute("OwnerUserId", self.OwnerUserId)
+	stealPrompt:SetAttribute("FactoryId", self.Id)
+
 	return self
 end
 
 -- Workers --
-function Factory.PlaceWorker(self: Factory, worker: Worker.Worker): boolean
+function Factory.PlaceWorker(self: Factory, worker: ClassTypes.Worker): boolean
 	for slotIndex = 1, #self.Spawns do
 		if self.Workers[slotIndex] ~= nil then
 			continue
@@ -204,7 +226,7 @@ function Factory.PlaceWorker(self: Factory, worker: Worker.Worker): boolean
 	return false
 end
 
-function Factory.PlaceWorkerInSlot(self: Factory, worker: Worker.Worker, slotIndex: number): boolean
+function Factory.PlaceWorkerInSlot(self: Factory, worker: ClassTypes.Worker, slotIndex: number): boolean
 	-- Worker already assigned somewhere else
 	if worker.FactoryId ~= nil then
 		return false
@@ -286,7 +308,7 @@ function Factory.PlaceWorkerInSlot(self: Factory, worker: Worker.Worker, slotInd
 	return true
 end
 
-function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): Worker.Worker?
+function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): ClassTypes.Worker?
 	local worker = self.Workers[slotIndex]
 	if not worker then
 		return nil
@@ -318,7 +340,7 @@ function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): Worker.
 	return worker
 end
 
-function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): Worker.Worker?
+function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): ClassTypes.Worker?
 	local worker = self:DetachWorkerFromSlot(slotIndex)
 
 	if not worker then
@@ -338,7 +360,7 @@ function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): Worker.
 end
 
 -- Theft --
-function Factory.ConfigureStealPrompt(self: Factory, worker: Worker.Worker, slotIndex: number): ()
+function Factory.ConfigureStealPrompt(self: Factory, worker: ClassTypes.Worker, slotIndex: number): ()
 	local root = worker:GetRootPart()
 	if not root then
 		warn(worker.WorkerType, "has no root part for steal prompt!")
@@ -422,13 +444,27 @@ function Factory.TrySellItem(self: Factory, itemId: string): boolean
 
 	self:AddPendingCash(cashEarned)
 
-	GameEvents.ItemSold:Fire(
-		self.OwnerUserId,
-		itemId,
-		cashEarned
-	)
+	GameEvents.ItemSold:Fire(self.OwnerUserId, itemId, cashEarned)
 
 	return true
+end
+
+function Factory.LoadInventory(self: Factory, inventory: { [string]: number }): ()
+	table.clear(self.Inventory)
+
+	for itemId, amount in inventory do
+		-- Ignore removed/invalid item definitions
+		if not ItemConfig[itemId] then
+			continue
+		end
+
+		local normalizedAmount = math.max(0, math.floor(amount))
+		if normalizedAmount <= 0 then
+			continue
+		end
+
+		self.Inventory[itemId] = normalizedAmount
+	end
 end
 
 function Factory.LoadPendingCash(self: Factory, amount: number): ()
@@ -473,7 +509,12 @@ function Factory.AddItem(self: Factory, itemId: string, amount: number): ()
 	end
 
 	local currentAmount = self.Inventory[itemId] or 0
-	self.Inventory[itemId] = currentAmount + amount
+	local newAmount = currentAmount + amount
+
+	self.Inventory[itemId] = newAmount
+
+	-- Broadcast inventory changed
+	GameEvents.FactoryInventoryChanged:Fire(self.OwnerUserId, itemId, newAmount)
 end
 
 function Factory.RemoveItem(self: Factory, itemId: string, amount: number): boolean
@@ -487,7 +528,16 @@ function Factory.RemoveItem(self: Factory, itemId: string, amount: number): bool
 		return false
 	end
 
-	self.Inventory[itemId] = currentAmount - amount
+	local newAmount = currentAmount - amount
+
+	if newAmount <= 0 then
+		self.Inventory[itemId] = nil
+	else
+		self.Inventory[itemId] = newAmount
+	end
+
+	-- Broadcast inventory changed
+	GameEvents.FactoryInventoryChanged:Fire(self.OwnerUserId, itemId, newAmount)
 
 	return true
 end
@@ -572,11 +622,11 @@ function Factory.GetSlotCount(self: Factory): number
 	return #self.Spawns
 end
 
-function Factory.GetWorkerInSlot(self: Factory, slotIndex: number): Worker.Worker?
+function Factory.GetWorkerInSlot(self: Factory, slotIndex: number): ClassTypes.Worker?
 	return self.Workers[slotIndex]
 end
 
-function Factory.SetProductionCallback(self: Factory, callback: (Worker.Worker, string, number) -> ()): ()
+function Factory.SetProductionCallback(self: Factory, callback: (ClassTypes.Worker, string, number) -> ()): ()
 	self.ProductionCallback = callback
 end
 

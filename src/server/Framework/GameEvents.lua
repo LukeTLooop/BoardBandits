@@ -28,6 +28,8 @@ type GameEventsType = {
 
 	FactoryCashStolen: Signal.Signal<Player, number, number>,
 
+	FactoryInventoryChanged: Signal.Signal<number, string, number>,
+
 	-- Worker lifecycle
 	WorkerPurchased: Signal.Signal<Player, WorkerTypes.OwnedWorkerData>,
 
@@ -67,6 +69,7 @@ local GameEvents: GameEventsType = {
 	FactoryWorkerUnassigned = Signal.new(),
 
 	FactoryCashStolen = Signal.new(),
+	FactoryInventoryChanged = Signal.new(),
 
 	-- Worker lifecycle
 	WorkerPurchased = Signal.new(),

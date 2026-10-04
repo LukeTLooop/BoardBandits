@@ -52,6 +52,7 @@ function PlayerDataSchema.CreateDefault(): PlayerDataTypes.PlayerData
 		Factory = {
 			Version = 1,
 			PendingCash = 0,
+			Inventory = {},
 			WorkerAssignments = {},
 			Placements = {},
 		},

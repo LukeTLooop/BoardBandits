@@ -2123,6 +2123,13 @@
               "className": "Folder",
               "children": [
                 {
+                  "name": "FactoryDataTypes",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Types/FactoryDataTypes.lua"
+                  ]
+                },
+                {
                   "name": "PlayerDataTypes",
                   "className": "ModuleScript",
                   "filePaths": [
@@ -2134,6 +2141,13 @@
                   "className": "ModuleScript",
                   "filePaths": [
                     "src/shared/Types/WorkerDetailsTypes.lua"
+                  ]
+                },
+                {
+                  "name": "WorkerFilterTypes",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Types/WorkerFilterTypes.lua"
                   ]
                 },
                 {
@@ -2151,24 +2165,10 @@
                   ]
                 },
                 {
-                  "name": "WorkerFilterTypes",
-                  "className": "ModuleScript",
-                  "filePaths": [
-                    "src/shared/Types/WorkerFilterTypes.lua"
-                  ]
-                },
-                {
                   "name": "WorkerUpgradeTypes",
                   "className": "ModuleScript",
                   "filePaths": [
                     "src/shared/Types/WorkerUpgradeTypes.lua"
-                  ]
-                },
-                {
-                  "name": "FactoryDataTypes",
-                  "className": "ModuleScript",
-                  "filePaths": [
-                    "src/shared/Types/FactoryDataTypes.lua"
                   ]
                 }
               ]
@@ -2294,6 +2294,13 @@
               ]
             },
             {
+              "name": "FactoryStateService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/FactoryStateService.lua"
+              ]
+            },
+            {
               "name": "PlayerDataService",
               "className": "ModuleScript",
               "filePaths": [
@@ -2369,12 +2376,25 @@
               "filePaths": [
                 "src/server/Services/WorkerUpgradeService.lua"
               ]
-            },
+            }
+          ]
+        },
+        {
+          "name": "Types",
+          "className": "Folder",
+          "children": [
             {
-              "name": "FactoryStateService",
+              "name": "ClassTypes",
               "className": "ModuleScript",
               "filePaths": [
-                "src/server/Services/FactoryStateService.lua"
+                "src/server/Types/ClassTypes.lua"
+              ]
+            },
+            {
+              "name": "ServiceTypes",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Types/ServiceTypes.lua"
               ]
             }
           ]
@@ -2446,6 +2466,13 @@
                       ]
                     },
                     {
+                      "name": "ModalBackdrop",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/Components/ModalBackdrop.lua"
+                      ]
+                    },
+                    {
                       "name": "OwnedWorkerCard",
                       "className": "ModuleScript",
                       "filePaths": [
@@ -2467,13 +2494,6 @@
                       ]
                     },
                     {
-                      "name": "WorkerViewport",
-                      "className": "ModuleScript",
-                      "filePaths": [
-                        "src/client/UI/Components/WorkerViewport.lua"
-                      ]
-                    },
-                    {
                       "name": "WorkerFilterBar",
                       "className": "ModuleScript",
                       "filePaths": [
@@ -2481,10 +2501,10 @@
                       ]
                     },
                     {
-                      "name": "ModalBackdrop",
+                      "name": "WorkerViewport",
                       "className": "ModuleScript",
                       "filePaths": [
-                        "src/client/UI/Components/ModalBackdrop.lua"
+                        "src/client/UI/Components/WorkerViewport.lua"
                       ]
                     }
                   ]
@@ -2494,17 +2514,17 @@
                   "className": "Folder",
                   "children": [
                     {
-                      "name": "useResponsiveScale",
-                      "className": "ModuleScript",
-                      "filePaths": [
-                        "src/client/UI/Hooks/useResponsiveScale.lua"
-                      ]
-                    },
-                    {
                       "name": "useOutsideClick",
                       "className": "ModuleScript",
                       "filePaths": [
                         "src/client/UI/Hooks/useOutsideClick.lua"
+                      ]
+                    },
+                    {
+                      "name": "useResponsiveScale",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/Hooks/useResponsiveScale.lua"
                       ]
                     }
                   ]

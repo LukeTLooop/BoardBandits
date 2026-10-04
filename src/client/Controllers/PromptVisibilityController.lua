@@ -6,61 +6,92 @@ local Players = game:GetService("Players")
 
 -- Player --
 local plr = Players.LocalPlayer
-assert(plr ~= nil, "PromptVisibilityController must be run on client!")
 
 -- Helper Functions --
-local function updatePrompt(
-	prompt: ProximityPrompt
-): ()
+local function updatePrompt(prompt: ProximityPrompt): ()
 	-- Normal prompts have no visibility rules
 	local access = prompt:GetAttribute("PromptAccess")
-	if access == nil or typeof(access) ~= "string" then return end
-	
+	if typeof(access) ~= "string" then
+		return
+	end
+
 	local claimedFactoryId = plr:GetAttribute("ClaimedFactoryId")
-	if typeof(claimedFactoryId) ~= "string" then return end
-	
 	local hasFactory = typeof(claimedFactoryId) == "string"
-	
-	local ownerUserId = prompt:GetAttribute("OwnerUserId")
-	if typeof(ownerUserId) ~= "number" then return end
-	
+
 	-- Claim factory
 	if access == "ClaimFactory" then
-		prompt.Enabled = not hasFactory
+		local claimPart = prompt.Parent
+		if not claimPart then
+			prompt.Enabled = false
+
+			return
+		end
+
+		local factoryModel = claimPart.Parent
+		if not factoryModel or not factoryModel:IsA("Model") then
+			prompt.Enabled = false
+
+			return
+		end
+
+		local factoryOwnerUserId = factoryModel:GetAttribute("OwnerUserId")
+		local factoryClaimed = typeof(factoryOwnerUserId) == "number"
+
+		prompt.Enabled = not hasFactory and not factoryClaimed
+
+		return
+	end
+
+	-- Remaining access types require ownership data
+	local ownerUserId = prompt:GetAttribute("OwnerUserId")
+	if typeof(ownerUserId) ~= "number" then
+		prompt.Enabled = false
+
+		return
+	end
+
 	-- Owner management
-	elseif access == "Owner" then
-		prompt.Enabled = ownerUserId == plr.UserId
+	if access == "Owner" then
+		prompt.Enabled = hasFactory and ownerUserId == plr.UserId
+
+		return
+	end
+
 	-- Theft
-	elseif access == "Steal" then
-		prompt.Enabled = ownerUserId ~= plr.UserId
+	if access == "Steal" then
+		prompt.Enabled = hasFactory and ownerUserId ~= plr.UserId
+
+		return
 	end
 end
 
-local function registerPrompt(
-	prompt: ProximityPrompt
-): ()
+-- Register prompt
+local function registerPrompt(prompt: ProximityPrompt): ()
 	prompt.ClickablePrompt = false
 
 	updatePrompt(prompt)
-	
+
 	prompt:GetAttributeChangedSignal("PromptAccess"):Connect(function()
 		updatePrompt(prompt)
 	end)
-	
+
 	prompt:GetAttributeChangedSignal("OwnerUserId"):Connect(function()
 		updatePrompt(prompt)
 	end)
 end
 
+-- Refresh
 local function refreshAllPrompts(): ()
 	for _, descendant in workspace:GetDescendants() do
-		if not descendant:IsA("ProximityPrompt") then continue end
-		
+		if not descendant:IsA("ProximityPrompt") then
+			continue
+		end
+
 		updatePrompt(descendant)
 	end
 end
 
--- Register Prompts --
+-- Register prompts
 for _, descendant in workspace:GetDescendants() do
 	if descendant:IsA("ProximityPrompt") then
 		registerPrompt(descendant)
