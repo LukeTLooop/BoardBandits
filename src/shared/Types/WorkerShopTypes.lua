@@ -2,22 +2,24 @@
 -- Worker Shop Types
 
 export type ShopState = {
-    Cash: number,
+	Cash: number,
 
-    HasClaimedFactory: boolean,
+	HasClaimedFactory: boolean,
 
-    WorkerShopUnlocked: boolean,
+	WorkerShopUnlocked: boolean,
 
-    PartsSold: number,
-    RequiredPartsSold: number,
+	PartsSold: number,
+	RequiredPartsSold: number,
+
+	AvailableWorkers: { string },
 }
 
 export type PurchaseResult = {
-    Success: boolean,
+	Success: boolean,
 
-    Message: string,
+	Message: string,
 
-    Cash: number,
+	Cash: number,
 }
 
 return {}

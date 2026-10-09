@@ -69,18 +69,6 @@ local function getWorkerRole(definition: WorkerConfig.WorkerDefinition): string
 	return definition.RoleName or definition.WorkerType
 end
 
-local function getWorkerNames(): { string }
-	local names: { string } = {}
-
-	for workerName in WorkerConfig do
-		table.insert(names, workerName)
-	end
-
-	table.sort(names)
-
-	return names
-end
-
 -- Component --
 local function WorkerShop(props: Props)
 	local selectedWorker, setSelectedWorker = React.useState("Gloop")
@@ -101,6 +89,7 @@ local function WorkerShop(props: Props)
 	local hasFactory = shopState ~= nil and shopState.HasClaimedFactory
 	local progressionUnlocked = shopState ~= nil and shopState.WorkerShopUnlocked
 	local shopLocked = not shopLoaded or not hasFactory or not progressionUnlocked
+	local availableWorkers: { string } = if shopState then shopState.AvailableWorkers else {}
 
 	-- Worker cards
 	local cardChildren: { [string]: any } = {
@@ -123,7 +112,7 @@ local function WorkerShop(props: Props)
 		}),
 	}
 
-	for _, workerName in getWorkerNames() do
+	for _, workerName in availableWorkers do
 		local definition = WorkerConfig[workerName]
 		local role = getWorkerRole(definition)
 
@@ -147,6 +136,19 @@ local function WorkerShop(props: Props)
 		})
 	end
 
+	local availableRoles: { [string]: boolean } = {
+		All = true,
+	}
+
+	for _, workerName in availableWorkers do
+		local workerDefinition = WorkerConfig[workerName]
+		if not workerDefinition then
+			continue
+		end
+
+		availableRoles[getWorkerRole(workerDefinition)] = true
+	end
+
 	-- Tabs
 	local tabChildren: { [string]: any } = {
 		Layout = e("UIListLayout", {
@@ -163,6 +165,10 @@ local function WorkerShop(props: Props)
 	}
 
 	for index, roleName in ROLE_ORDER do
+		if not availableRoles[roleName] then
+			continue
+		end
+
 		tabChildren[roleName] = e(TabButton, {
 			Text = roleName,
 
@@ -382,6 +388,8 @@ local function WorkerShop(props: Props)
 				Size = UDim2.fromOffset(1184, 470),
 
 				BackgroundTransparency = 1,
+
+				Visible = not shopLocked,
 			}, {
 				-- Cards
 				Workers = e("ScrollingFrame", {

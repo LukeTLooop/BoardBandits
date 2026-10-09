@@ -20,22 +20,26 @@ type BaseWorkerDefinition = {
 	MaxLevel: number,
 
 	Price: number,
-	UpgradeCosts: {number},
+
+	ShopOrder: number,
+	RequiredPartsSold: number,
+
+	UpgradeCosts: { number },
 }
 
 type ProducerSpecificDefinition = {
 	WorkerType: "Producer",
-	
-	OutputProgression: {OutputProgressionEntry},
-	
+
+	OutputProgression: { OutputProgressionEntry },
+
 	ProductionInterval: number,
 	OutputAmount: number,
 }
 
 type AssemblerSpecificDefinition = {
 	WorkerType: "Assembler",
-	
-	RecipeProgression: {RecipeProgressionEntry},
+
+	RecipeProgression: { RecipeProgressionEntry },
 }
 
 export type ProducerDefinition = BaseWorkerDefinition & ProducerSpecificDefinition
@@ -44,27 +48,30 @@ export type AssemblerDefinition = BaseWorkerDefinition & AssemblerSpecificDefini
 
 export type WorkerDefinition = BaseWorkerDefinition & (ProducerSpecificDefinition | AssemblerSpecificDefinition)
 
-local WorkerConfig: {[string]: WorkerDefinition} = {
+local WorkerConfig: { [string]: WorkerDefinition } = {
 	-- Bearing creatures
 	Gloop = {
 		DisplayName = "Gloop",
 		ModelName = "Gloop",
 		Rarity = "Common",
-		
+
 		RoleName = "Bearings",
-		
+
 		MaxLevel = 5,
 		Price = 100,
-		
+
+		ShopOrder = 1,
+		RequiredPartsSold = 5,
+
 		UpgradeCosts = {
 			150, -- 1 -> 2
 			250, -- 2 -> 3
 			400, -- 3 -> 4
 			650, -- 4 -> 5
 		},
-		
+
 		WorkerType = "Producer",
-		
+
 		OutputProgression = {
 			{
 				RequiredLevel = 1,
@@ -79,21 +86,24 @@ local WorkerConfig: {[string]: WorkerDefinition} = {
 				Item = "PrecisionBearings",
 			},
 		},
-		
+
 		ProductionInterval = 4,
 		OutputAmount = 1,
 	},
-	
+
 	-- Trucks creatures
 	Bonk = {
 		DisplayName = "Bonk",
 		ModelName = "Bonk",
 		Rarity = "Common",
-		
+
 		RoleName = "Trucks",
-		
+
 		MaxLevel = 5,
 		Price = 100,
+
+		ShopOrder = 2,
+		RequiredPartsSold = 10,
 
 		UpgradeCosts = {
 			150, -- 1 -> 2
@@ -122,17 +132,20 @@ local WorkerConfig: {[string]: WorkerDefinition} = {
 		ProductionInterval = 4,
 		OutputAmount = 1,
 	},
-	
+
 	-- Wheels creatures
 	Squish = {
 		DisplayName = "Squish",
 		ModelName = "Squish",
 		Rarity = "Common",
-		
+
 		RoleName = "Wheels",
-		
+
 		MaxLevel = 5,
 		Price = 100,
+
+		ShopOrder = 3,
+		RequiredPartsSold = 20,
 
 		UpgradeCosts = {
 			150, -- 1 -> 2
@@ -161,17 +174,20 @@ local WorkerConfig: {[string]: WorkerDefinition} = {
 		ProductionInterval = 4,
 		OutputAmount = 1,
 	},
-	
+
 	-- Deck creatures
 	Plank = {
 		DisplayName = "Plank",
 		ModelName = "Plank",
 		Rarity = "Common",
-		
+
 		RoleName = "Decks",
-		
+
 		MaxLevel = 5,
 		Price = 100,
+
+		ShopOrder = 4,
+		RequiredPartsSold = 30,
 
 		UpgradeCosts = {
 			150, -- 1 -> 2
@@ -200,17 +216,20 @@ local WorkerConfig: {[string]: WorkerDefinition} = {
 		ProductionInterval = 4,
 		OutputAmount = 1,
 	},
-	
+
 	-- Assembly creatures
 	Patch = {
 		DisplayName = "Patch",
 		ModelName = "Patch",
 		Rarity = "Common",
-		
+
 		RoleName = "Assembler",
-		
+
 		MaxLevel = 5,
 		Price = 250,
+
+		ShopOrder = 5,
+		RequiredPartsSold = 50,
 
 		UpgradeCosts = {
 			300, -- 1 -> 2
@@ -236,7 +255,6 @@ local WorkerConfig: {[string]: WorkerDefinition} = {
 			},
 		},
 	},
-	
 }
 
 return WorkerConfig

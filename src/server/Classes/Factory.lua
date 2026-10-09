@@ -252,9 +252,14 @@ function Factory.PlaceWorkerInSlot(self: Factory, worker: Worker.Worker, slotInd
 
 	-- Spawn/reposition model
 	if worker.Model then
+		worker:SetStationCFrame(spawnpoint.CFrame)
 		worker.Model:PivotTo(spawnpoint.CFrame)
+		worker:SetStationLocked(true)
 	else
-		worker:Spawn(spawnpoint.CFrame)
+		local spawned = worker:Spawn(spawnpoint.CFrame)
+		if not spawned then
+			return false
+		end
 	end
 
 	local model = worker.Model
@@ -287,7 +292,8 @@ function Factory.PlaceWorkerInSlot(self: Factory, worker: Worker.Worker, slotInd
 	end)
 
 	-- Assemblers require inventory access
-	if worker.WorkerType == "Assembler" then
+	local workerDefinition = WorkerConfig[worker.WorkerType]
+	if workerDefinition and workerDefinition.WorkerType == "Assembler" then
 		worker:SetCanProduceCallback(function(inputs: { [string]: number })
 			return self:HasItems(inputs)
 		end)
@@ -319,13 +325,14 @@ function Factory.DetachWorkerFromSlot(self: Factory, slotIndex: number): Worker.
 
 	-- Stop production
 	worker:StopWorking()
+	worker:SetStationLocked(false)
 	worker:ClearFactoryCallbacks()
 
 	-- Disable theft prompt while detached
 	if worker.Model then
 		local stealPrompt = worker.Model:FindFirstChild("StealPrompt", true)
 		if stealPrompt and stealPrompt:IsA("ProximityPrompt") then
-			stealPrompt.Enabled = false
+			stealPrompt:Destroy()
 		end
 	end
 
@@ -352,10 +359,7 @@ function Factory.RemoveWorkerFromSlot(self: Factory, slotIndex: number): Worker.
 	worker.CarrierUserId = nil
 
 	-- Remove model but not worker object
-	if worker.Model then
-		worker.Model:Destroy()
-		worker.Model = nil
-	end
+	worker:DestroyModel()
 
 	return worker
 end

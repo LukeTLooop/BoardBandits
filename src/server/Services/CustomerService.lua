@@ -10,8 +10,8 @@ local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local Customer = require(ServerScriptService.Classes.Customer)
 local Factory = require(ServerScriptService.Classes.Factory)
 
-local MIN_SPAWN_INTERVAL = 8
-local MAX_SPAWN_INTERVAL = 12
+local MIN_SPAWN_INTERVAL = 2
+local MAX_SPAWN_INTERVAL = 4
 
 local rng = Random.new()
 
@@ -113,7 +113,8 @@ function CustomerService.RepositionQueue(self: CustomerService, state: FactoryQu
 			continue
 		end
 
-		customer:SetStatus(`Waiting in line...\n#{index}`)
+		customer:SetQueueIndex(index)
+		customer:SetStatus("Queue")
 
 		customer:GoTo(queueSpot.Position)
 	end
@@ -126,7 +127,8 @@ function CustomerService.ProcessCustomerAtCounter(
 ): ()
 	local factory = state.Factory
 
-	customer:SetStatus("Ordering...")
+	customer:SetQueueIndex(0)
+	customer:SetStatus("Ordering")
 
 	-- Walk to counter
 	local reachedCounter = customer:MoveTo(factory.CustomerCounter.Position)
@@ -138,18 +140,18 @@ function CustomerService.ProcessCustomerAtCounter(
 	end
 
 	if not reachedCounter then
-		print("didnt reach counter")
 		customer:Destroy()
 		self.Customers[customer.Id] = nil
+
 		return
 	end
 
 	-- Try to purchase
 	local customerDefinition = CustomerConfig[customer.CustomerType]
 	if not customerDefinition then
-		print("no customer definition")
 		customer:Destroy()
 		self.Customers[customer.Id] = nil
+
 		return
 	end
 
@@ -163,7 +165,7 @@ function CustomerService.ProcessCustomerAtCounter(
 
 	-- Double check new item is valid
 	if not desiredItem then
-		customer:SetStatus("Nevermind...")
+		customer:SetStatus("Leaving")
 
 		task.wait(0.75)
 
@@ -174,11 +176,11 @@ function CustomerService.ProcessCustomerAtCounter(
 		return
 	end
 
-	customer.DesiredItem = desiredItem
+	customer:SetDesiredItem(desiredItem)
 
 	local itemDefinition = ItemConfig[desiredItem]
 	if not itemDefinition then
-		customer:SetStatus("Nevermind...")
+		customer:SetStatus("Leaving")
 
 		task.wait(0.75)
 
@@ -189,22 +191,18 @@ function CustomerService.ProcessCustomerAtCounter(
 		return
 	end
 
-	local displayName = if itemDefinition then itemDefinition.DisplayName else desiredItem
-
-	customer:SetStatus(`Looking for:\n{displayName}`)
+	customer:SetStatus("Waiting")
+	customer:SetWaitEndTime(workspace:GetServerTimeNow() + math.max(customer.MaxWaitTime - customer.TimeWaited, 0))
 
 	-- Try to purchase until patience expires
 	while state.Running and customer.TimeWaited < customer.MaxWaitTime do
 		if factory:TrySellItem(desiredItem) then
 			customer.HasPurchased = true
-			customer:SetStatus("Thanks! 🛹")
+			customer:SetStatus("Success")
+			customer:SetWaitEndTime(0)
 
 			break
 		end
-
-		local remaining = customer.MaxWaitTime - customer.TimeWaited
-
-		customer:SetStatus(`Waiting for {displayName}...\n{math.ceil(remaining)}s`)
 
 		task.wait(customerDefinition.RetryInterval)
 
@@ -219,7 +217,8 @@ function CustomerService.ProcessCustomerAtCounter(
 
 	-- Purchase failed because patience expired
 	if not customer.HasPurchased then
-		customer:SetStatus(`No {displayName}?\nNevermind...`)
+		customer:SetStatus("Failed")
+		customer:SetWaitEndTime(0)
 	end
 
 	-- Leave factory
@@ -294,14 +293,12 @@ function CustomerService.TrySpawnCustomer(self: CustomerService, state: FactoryQ
 	end
 
 	local customer = self:CreateCustomer(state.CustomerType)
-	local spawned = customer:Spawn(CFrame.new(factory.CustomerSpawn.Position))
+	local spawned = customer:Spawn(CFrame.new(factory.CustomerSpawn.Position), factory.OwnerUserId, factory.Id)
 
 	if not spawned then
 		self.Customers[customer.Id] = nil
 		return false
 	end
-
-	customer:SetStatus("Waiting in line...")
 
 	table.insert(state.Waiting, customer)
 

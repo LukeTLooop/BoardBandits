@@ -25,6 +25,9 @@ local GameEvents = require(ServerScriptService.Framework.GameEvents)
 local openWorkerShop = ReplicatedStorage.Remotes.Workers.OpenWorkerShop
 assert(openWorkerShop:IsA("RemoteEvent"), "OpenWorkerShop must be a RemoteEvent!")
 
+local workerShopStateUpdated = ReplicatedStorage.Remotes.Workers.WorkerShopStateUpdated
+assert(workerShopStateUpdated:IsA("RemoteEvent"), "WorkerShopStateUpdated must be a RemoteEvent!")
+
 -- Service --
 local WorkerShopService = {}
 WorkerShopService.__index = WorkerShopService
@@ -60,18 +63,16 @@ function WorkerShopService.new(
 
 		Started = false,
 	}
-	
+
 	return setmetatable(data, WorkerShopService)
 end
 
 -- State --
-function WorkerShopService.GetShopState(
-	self: WorkerShopService,
-	plr: Player
-): WorkerShopTypes.ShopState
+function WorkerShopService.GetShopState(self: WorkerShopService, plr: Player): WorkerShopTypes.ShopState
 	local hasFactory = self.Factories:GetFactoryForPlayer(plr) ~= nil
 	local partsSold = self.Progression:GetPartsSold(plr)
 	local unlocked = self.Progression:CanPurchaseWorkers(plr)
+	local availableWorkers = self.Progression:GetUnlockedWorkerTypes(plr)
 
 	return {
 		Cash = self.Economy:GetCash(plr),
@@ -79,6 +80,7 @@ function WorkerShopService.GetShopState(
 		WorkerShopUnlocked = unlocked,
 		PartsSold = partsSold,
 		RequiredPartsSold = ProgressionConfig.WorkerShop.RequiredPartsSold,
+		AvailableWorkers = availableWorkers,
 	}
 end
 
@@ -102,10 +104,7 @@ function WorkerShopService.BuyWorker(
 	if not self.Progression:CanPurchaseWorkers(plr) then
 		local partsSold = self.Progression:GetPartsSold(plr)
 		local required = ProgressionConfig.WorkerShop.RequiredPartsSold
-		local remaining = math.max(
-			required - partsSold,
-			0
-		)
+		local remaining = math.max(required - partsSold, 0)
 
 		return {
 			Success = false,
@@ -124,6 +123,20 @@ function WorkerShopService.BuyWorker(
 		}
 	end
 
+	-- Worker progression
+	if not self.Progression:IsWorkerUnlocked(plr, workerType) then
+		local partsSold = self.Progression:GetPartsSold(plr)
+		local remaining = math.max(definition.RequiredPartsSold - partsSold, 0)
+
+		return {
+			Success = false,
+			Message = if remaining == 1
+				then "Sell 1 more part to unlock this worker."
+				else `Sell {remaining} more parts to unlock this worker.`,
+			Cash = self.Economy:GetCash(plr),
+		}
+	end
+
 	-- Payment
 	if not self.Economy:SpendCash(plr, definition.Price) then
 		return {
@@ -134,17 +147,11 @@ function WorkerShopService.BuyWorker(
 	end
 
 	-- Add worker
-	local workerData = self.Inventory:AddWorker(
-		plr,
-		workerType
-	)
+	local workerData = self.Inventory:AddWorker(plr, workerType)
 
 	if not workerData then
 		-- Roll back payment if inventory creation fails
-		self.Economy:AddCash(
-			plr,
-			definition.Price
-		)
+		self.Economy:AddCash(plr, definition.Price)
 
 		return {
 			Success = false,
@@ -154,10 +161,7 @@ function WorkerShopService.BuyWorker(
 	end
 
 	-- Broadcast worker purchased
-	GameEvents.WorkerPurchased:Fire(
-		plr,
-		workerData
-	)
+	GameEvents.WorkerPurchased:Fire(plr, workerData)
 
 	return {
 		Success = true,
@@ -167,20 +171,12 @@ function WorkerShopService.BuyWorker(
 end
 
 -- Setup World Shop --
-function WorkerShopService.SetupWorldShop(
-	self: WorkerShopService
-): ()
+function WorkerShopService.SetupWorldShop(self: WorkerShopService): ()
 	local shop = workspace:WaitForChild("WorkerShop")
-	assert(
-		shop:IsA("Model"),
-		"workspace.WorkerShop must be a Model!"
-	)
+	assert(shop:IsA("Model"), "workspace.WorkerShop must be a Model!")
 
 	local interactionPart = shop:WaitForChild("InteractionPart")
-	assert(
-		interactionPart:IsA("BasePart"),
-		"WorkerShop.InteractionPart must be a BasePart!"
-	)
+	assert(interactionPart:IsA("BasePart"), "WorkerShop.InteractionPart must be a BasePart!")
 
 	-- Prompt
 	local existing = interactionPart:FindFirstChild("WorkerShopPrompt")
@@ -202,21 +198,21 @@ function WorkerShopService.SetupWorldShop(
 	prompt.ClickablePrompt = false
 
 	-- Open UI
-	prompt.Triggered:Connect(function(
-		plr: Player
-	)
-		self.OpenWorkerShop:FireClient(
-			plr
-		)
+	prompt.Triggered:Connect(function(plr: Player)
+		self.OpenWorkerShop:FireClient(plr)
 	end)
 end
 
 -- Start --
-function WorkerShopService.Start(
-	self: WorkerShopService
-): ()
-	if self.Started then return end
+function WorkerShopService.Start(self: WorkerShopService): ()
+	if self.Started then
+		return
+	end
 	self.Started = true
+
+	GameEvents.WorkerUnlocked:Connect(function(plr: Player, _workerType: string)
+		workerShopStateUpdated:FireClient(plr, self:GetShopState(plr))
+	end)
 
 	self:SetupWorldShop()
 end

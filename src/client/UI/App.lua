@@ -17,12 +17,16 @@ local WorkerTypes = require(sharedTypes:WaitForChild("WorkerTypes"))
 local WorkerShopTypes = require(sharedTypes:WaitForChild("WorkerShopTypes"))
 local WorkerDetailsTypes = require(sharedTypes:WaitForChild("WorkerDetailsTypes"))
 local WorkerUpgradeTypes = require(sharedTypes:WaitForChild("WorkerUpgradeTypes"))
+local HUDTypes = require(sharedTypes:WaitForChild("HUDTypes"))
 
 -- UI --
 local Screens = script.Parent:WaitForChild("Screens")
 local WorkerShop = require(Screens:WaitForChild("WorkerShop"))
 local WorkerInventory = require(Screens:WaitForChild("WorkerInventory"))
 local WorkerDetails = require(Screens:WaitForChild("WorkerDetails"))
+
+local HUD = script.Parent:WaitForChild("HUD")
+local PassiveHUD = require(HUD:WaitForChild("PassiveHUD"))
 
 local e = React.createElement
 
@@ -32,23 +36,26 @@ local utilities = script.Parent:WaitForChild("Utility")
 local UISounds = require(utilities:WaitForChild("UISounds"))
 
 -- Remotes --
-local remotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Workers")
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local workerRemotes = remotes:WaitForChild("Workers")
 
-local openWorkerShop = remotes:WaitForChild("OpenWorkerShop")
-local requestWorkerShopState = remotes:WaitForChild("RequestWorkerShopState")
-local buyWorker = remotes:WaitForChild("BuyWorker")
+local openWorkerShop = workerRemotes:WaitForChild("OpenWorkerShop")
+local workerShopStateUpdated = workerRemotes:WaitForChild("WorkerShopStateUpdated")
+local requestWorkerShopState = workerRemotes:WaitForChild("RequestWorkerShopState")
+local buyWorker = workerRemotes:WaitForChild("BuyWorker")
 
-local openInventory = remotes:WaitForChild("OpenInventory")
-local requestInventory = remotes:WaitForChild("RequestInventory")
-local placeWorker = remotes:WaitForChild("PlaceWorker")
+local openInventory = workerRemotes:WaitForChild("OpenInventory")
+local requestInventory = workerRemotes:WaitForChild("RequestInventory")
+local placeWorker = workerRemotes:WaitForChild("PlaceWorker")
 
-local openWorkerDetails = remotes:WaitForChild("OpenWorkerDetails")
-local requestWorkerDetails = remotes:WaitForChild("RequestWorkerDetails")
-local upgradeWorker = remotes:WaitForChild("UpgradeWorker")
-local removeWorker = remotes:WaitForChild("RemoveWorker")
-local inventoryUpdated = remotes:WaitForChild("InventoryUpdated")
+local openWorkerDetails = workerRemotes:WaitForChild("OpenWorkerDetails")
+local requestWorkerDetails = workerRemotes:WaitForChild("RequestWorkerDetails")
+local upgradeWorker = workerRemotes:WaitForChild("UpgradeWorker")
+local removeWorker = workerRemotes:WaitForChild("RemoveWorker")
+local inventoryUpdated = workerRemotes:WaitForChild("InventoryUpdated")
 
 assert(openWorkerShop:IsA("RemoteEvent"), "OpenWorkerShop must be a RemoteEvent!")
+assert(workerShopStateUpdated:IsA("RemoteEvent"), "WorkerShopStateUpdated must be a RemoteEvent!")
 assert(requestWorkerShopState:IsA("RemoteFunction"), "RequestWorkerShopState must be a RemoteFunction!")
 assert(buyWorker:IsA("RemoteFunction"), "BuyWorker must be a RemoteFunction!")
 
@@ -61,6 +68,14 @@ assert(requestWorkerDetails:IsA("RemoteFunction"), "RequestWorkerDetails must be
 assert(upgradeWorker:IsA("RemoteFunction"), "UpgradeWorker must be a RemoteFunction!")
 assert(removeWorker:IsA("RemoteFunction"), "RemoveWorker must be a RemoteFunction!")
 assert(inventoryUpdated:IsA("RemoteEvent"), "InventoryUpdated must be a RemoteEvent!")
+
+local hudRemotes = remotes:WaitForChild("HUD")
+
+local requestHUDState = hudRemotes:WaitForChild("RequestState")
+local hudStateUpdated = hudRemotes:WaitForChild("StateUpdated")
+
+assert(requestHUDState:IsA("RemoteFunction"), "RequestState must be a RemoteFunction!")
+assert(hudStateUpdated:IsA("RemoteEvent"), "StateUpdated must be a RemoteEvent!")
 
 -- App --
 local function App()
@@ -75,6 +90,8 @@ local function App()
 		SlotIndex = 0,
 		StationRole = "",
 	}
+
+	local hudState, setHUDState = React.useState(nil :: HUDTypes.HUDState?)
 
 	local shopOpen, setShopOpen = React.useState(false)
 	local shopState, setShopState = React.useState(nil :: WorkerShopTypes.ShopState?)
@@ -114,11 +131,38 @@ local function App()
 
 	-- Open listener
 	React.useEffect(function()
+		local connection = hudStateUpdated.OnClientEvent:Connect(function(state: HUDTypes.HUDState)
+			setHUDState(state)
+		end)
+
+		task.spawn(function()
+			local result = requestHUDState:InvokeServer()
+			if result then
+				setHUDState(result :: HUDTypes.HUDState)
+			end
+		end)
+
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
+
+	React.useEffect(function()
 		local connection = openWorkerShop.OnClientEvent:Connect(function()
 			setShopOpen(true)
 			setStatusMessage("")
 
 			task.spawn(refreshShop)
+		end)
+
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
+
+	React.useEffect(function()
+		local connection = workerShopStateUpdated.OnClientEvent:Connect(function(state: WorkerShopTypes.ShopState)
+			setShopState(state)
 		end)
 
 		return function()
@@ -323,8 +367,16 @@ local function App()
 		end)
 	end
 
+	local popupOpen = shopOpen or inventoryOpen or detailsOpen
+
 	-- Render
 	return e(React.Fragment, nil, {
+		PassiveHUD = e(PassiveHUD, {
+			Visible = not popupOpen,
+
+			State = hudState,
+		}),
+
 		WorkerShop = e(WorkerShop, {
 			Visible = shopOpen,
 

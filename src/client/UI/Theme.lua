@@ -19,6 +19,9 @@ Theme.Color = {
 	Disabled = Color3.fromRGB(74, 77, 84),
 	DisabledText = Color3.fromRGB(137, 140, 148),
 
+	HUDMuted = Color3.fromRGB(91, 86, 74),
+	HUDShadow = Color3.fromRGB(55, 48, 41),
+
 	Yellow = Color3.fromRGB(255, 194, 38),
 	Orange = Color3.fromRGB(255, 116, 435),
 

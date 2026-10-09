@@ -17,6 +17,9 @@ local ProductionService = require(ServerScriptService.Services.ProductionService
 -- Classes --
 local Factory = require(ServerScriptService.Classes.Factory)
 
+-- Config --
+local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
+
 -- Types --
 local PlayerDataTypes = require(ReplicatedStorage.Shared.Types.PlayerDataTypes)
 
@@ -313,13 +316,12 @@ function FactoryService.ClaimFactory(self: FactoryService, plr: Player, factoryM
 
 	-- Set production callback
 	factory:SetProductionCallback(function(worker, itemId: string, amount: number)
-		local source: ProductionService.ProductionSource
+		local definition = WorkerConfig[worker.WorkerType]
 
-		if worker.WorkerType == "Assembler" then
-			source = "Assembler"
-		else
-			source = "Worker"
-		end
+		local source: ProductionService.ProductionSource = if definition
+				and definition.WorkerType == "Assembler"
+			then "Assembler"
+			else "Worker"
 
 		self.Production:AddProductionOutput(factory, itemId, amount, source, worker.Id)
 	end)

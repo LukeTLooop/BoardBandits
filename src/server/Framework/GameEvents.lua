@@ -55,6 +55,8 @@ type GameEventsType = {
 
 	-- Progression
 	ProgressionMilestoneUnlocked: Signal.Signal<Player, string>,
+
+	WorkerUnlocked: Signal.Signal<Player, string>,
 }
 
 local GameEvents: GameEventsType = {
@@ -92,6 +94,7 @@ local GameEvents: GameEventsType = {
 
 	-- Progression
 	ProgressionMilestoneUnlocked = Signal.new(),
+	WorkerUnlocked = Signal.new(),
 }
 
 return GameEvents

@@ -33,53 +33,42 @@ local rng = Random.new()
 -- Helpers --
 local function rollTemper(): WorkerTypes.WorkerTemper
 	local totalWeight = 0
-	
+
 	for _, definition in TemperConfig do
 		totalWeight += definition.RollWeight
 	end
-	
-	local roll = rng:NextNumber(
-		0,
-		totalWeight
-	)
-	
+
+	local roll = rng:NextNumber(0, totalWeight)
+
 	local runningWeight = 0
-	
+
 	for temperName, definition in TemperConfig do
 		runningWeight += definition.RollWeight
-		
+
 		if roll <= runningWeight then
 			return temperName :: WorkerTypes.WorkerTemper
 		end
 	end
-	
+
 	return "Normal"
 end
 
 -- Constructor --
-function WorkerInventoryService.new(
-	playerData: PlayerDataService.PlayerDataService
-): WorkerInventoryService
+function WorkerInventoryService.new(playerData: PlayerDataService.PlayerDataService): WorkerInventoryService
 	local data: WorkerInventoryServiceData = {
 		PlayerData = playerData,
 	}
-	
+
 	return setmetatable(data, WorkerInventoryService)
 end
 
 -- Inventory --
-function WorkerInventoryService.GetInventoryByUserId(
-	self: WorkerInventoryService,
-	userId: number
-): {OwnedWorkerData}
+function WorkerInventoryService.GetInventoryByUserId(self: WorkerInventoryService, userId: number): { OwnedWorkerData }
 	local profile = self.PlayerData:RequireProfileByUserId(userId)
 	return profile.Workers
 end
 
-function WorkerInventoryService.GetInventory(
-	self: WorkerInventoryService,
-	plr: Player
-): {OwnedWorkerData}
+function WorkerInventoryService.GetInventory(self: WorkerInventoryService, plr: Player): { OwnedWorkerData }
 	local profile = self.PlayerData:RequireProfile(plr)
 	return profile.Workers
 end
@@ -94,26 +83,26 @@ function WorkerInventoryService.AddWorker(
 		Id = HTTPService:GenerateGUID(false),
 		WorkerType = workerType,
 		Level = 1,
-		
+
 		Temper = rollTemper(),
-		
+
 		State = "Stored",
-		
+
 		FactoryId = nil,
 		SlotIndex = nil,
 		CarrierUserId = nil,
 	}
-	
+
 	local inventory = self:GetInventory(plr)
 	table.insert(inventory, workerData)
-	
+
 	--print(
 	--	"Created",
 	--	workerType,
 	--	"with temper",
 	--	workerData.Temper
 	--)
-	
+
 	return workerData
 end
 
@@ -129,33 +118,25 @@ function WorkerInventoryService.GetWorkerByUserId(
 			return workerData
 		end
 	end
-	
+
 	return nil
 end
 
-function WorkerInventoryService.GetWorker(
-	self: WorkerInventoryService,
-	plr: Player,
-	workerId: string
-): OwnedWorkerData?
-	return self:GetWorkerByUserId(
-		plr.UserId,
-		workerId
-	)
+function WorkerInventoryService.GetWorker(self: WorkerInventoryService, plr: Player, workerId: string): OwnedWorkerData?
+	return self:GetWorkerByUserId(plr.UserId, workerId)
 end
 
-function WorkerInventoryService.GetFirstUnplacedWorker(
-	self: WorkerInventoryService,
-	plr: Player
-): OwnedWorkerData?
+function WorkerInventoryService.GetFirstUnplacedWorker(self: WorkerInventoryService, plr: Player): OwnedWorkerData?
 	local inventory = self:GetInventory(plr)
-	
+
 	for _, workerData in inventory do
-		if workerData.State ~= "Stored" then continue end
-		
+		if workerData.State ~= "Stored" then
+			continue
+		end
+
 		return workerData
 	end
-	
+
 	return nil
 end
 
@@ -169,10 +150,7 @@ function WorkerInventoryService.UpdateWorkerState(
 	slotIndex: number?,
 	carrierUserId: number?
 ): boolean
-	local worker = self:GetWorkerByUserId(
-		ownerUserId,
-		workerId
-	)
+	local worker = self:GetWorkerByUserId(ownerUserId, workerId)
 
 	if not worker then
 		return false
@@ -193,14 +171,7 @@ function WorkerInventoryService.SetWorkerPlacedByUserId(
 	factoryId: string,
 	slotIndex: number
 ): boolean
-	return self:UpdateWorkerState(
-		userId,
-		workerId,
-		"Placed",
-		factoryId,
-		slotIndex,
-		nil
-	)
+	return self:UpdateWorkerState(userId, workerId, "Placed", factoryId, slotIndex, nil)
 end
 
 function WorkerInventoryService.SetWorkerPlaced(
@@ -210,12 +181,7 @@ function WorkerInventoryService.SetWorkerPlaced(
 	factoryId: string,
 	slotIndex: number
 ): boolean
-	return self:SetWorkerPlacedByUserId(
-		plr.UserId,
-		workerId,
-		factoryId,
-		slotIndex
-	)
+	return self:SetWorkerPlacedByUserId(plr.UserId, workerId, factoryId, slotIndex)
 end
 
 function WorkerInventoryService.SetWorkerStoredByUserId(
@@ -223,25 +189,11 @@ function WorkerInventoryService.SetWorkerStoredByUserId(
 	userId: number,
 	workerId: string
 ): boolean
-	return self:UpdateWorkerState(
-		userId,
-		workerId,
-		"Stored",
-		nil,
-		nil,
-		nil
-	)
+	return self:UpdateWorkerState(userId, workerId, "Stored", nil, nil, nil)
 end
 
-function WorkerInventoryService.SetWorkerStored(
-	self: WorkerInventoryService,
-	plr: Player,
-	workerId: string
-): boolean
-	return self:SetWorkerStoredByUserId(
-		plr.UserId,
-		workerId
-	)
+function WorkerInventoryService.SetWorkerStored(self: WorkerInventoryService, plr: Player, workerId: string): boolean
+	return self:SetWorkerStoredByUserId(plr.UserId, workerId)
 end
 
 function WorkerInventoryService.SetWorkerCarriedByUserId(
@@ -250,20 +202,22 @@ function WorkerInventoryService.SetWorkerCarriedByUserId(
 	workerId: string,
 	carrierUserId: number
 ): boolean
-	return self:UpdateWorkerState(
-		userId,
-		workerId,
-		"Carried",
-		nil,
-		nil,
-		carrierUserId
-	)
+	return self:UpdateWorkerState(userId, workerId, "Carried", nil, nil, carrierUserId)
 end
 
-function WorkerInventoryService.HasStoredWorkers(
+function WorkerInventoryService.SetWorkerDropped(self: WorkerInventoryService, plr: Player, workerId: string): boolean
+	return self:SetWorkerDroppedByUserId(plr.UserId, workerId)
+end
+
+function WorkerInventoryService.SetWorkerDroppedByUserId(
 	self: WorkerInventoryService,
-	plr: Player
+	userId: number,
+	workerId: string
 ): boolean
+	return self:UpdateWorkerState(userId, workerId, "Dropped", nil, nil, nil)
+end
+
+function WorkerInventoryService.HasStoredWorkers(self: WorkerInventoryService, plr: Player): boolean
 	return self:GetFirstUnplacedWorker(plr) ~= nil
 end
 
@@ -276,18 +230,10 @@ function WorkerInventoryService.SetWorkerPlacement(
 	slotIndex: number?
 ): boolean
 	if factoryId and slotIndex then
-		return self:SetWorkerPlaced(
-			plr,
-			workerId,
-			factoryId,
-			slotIndex
-		)
+		return self:SetWorkerPlaced(plr, workerId, factoryId, slotIndex)
 	end
-	
-	return self:SetWorkerStored(
-		plr,
-		workerId
-	)
+
+	return self:SetWorkerStored(plr, workerId)
 end
 
 -- Transfer worker to other player --
@@ -300,38 +246,38 @@ function WorkerInventoryService.TransferWorker(
 	if fromUserId == toUserId then
 		return nil
 	end
-	
+
 	local fromInventory = self:GetInventoryByUserId(fromUserId)
 	local toInventory = self:GetInventoryByUserId(toUserId)
-	
+
 	local foundIndex: number? = nil
 	local workerData: OwnedWorkerData? = nil
-	
+
 	for index, currentWorker in fromInventory do
 		if currentWorker.Id == workerId then
 			foundIndex = index
 			workerData = currentWorker
-			
+
 			break
 		end
 	end
-	
+
 	if not foundIndex or not workerData then
 		return nil
 	end
-	
+
 	-- Normalize transferred state
 	workerData.State = "Stored"
 	workerData.FactoryId = nil
 	workerData.SlotIndex = nil
 	workerData.CarrierUserId = nil
-	
+
 	-- Remove old ownership
 	table.remove(fromInventory, foundIndex)
-	
+
 	-- Add new ownership
 	table.insert(toInventory, workerData)
-	
+
 	return workerData
 end
 
@@ -344,45 +290,41 @@ function WorkerInventoryService.TransferWorkerOwnership(
 	if fromUserId == toUserId then
 		return nil
 	end
-	
+
 	local oldInventory = self:GetInventoryByUserId(fromUserId)
-	
+
 	local workerIndex: number? = nil
 	local workerData: OwnedWorkerData
-	
+
 	for index, currentWorker in oldInventory do
-		if currentWorker.Id ~= workerId then continue end
-		
+		if currentWorker.Id ~= workerId then
+			continue
+		end
+
 		workerIndex = index
 		workerData = currentWorker
-		
+
 		break
 	end
-	
+
 	if not workerIndex or not workerData then
 		return nil
 	end
-	
+
 	-- Remove exact worker from old owner
-	table.remove(
-		oldInventory,
-		workerIndex
-	)
-	
+	table.remove(oldInventory, workerIndex)
+
 	-- Convert worker to stored
 	workerData.State = "Stored"
 	workerData.FactoryId = nil
 	workerData.SlotIndex = nil
 	workerData.CarrierUserId = nil
-	
+
 	-- Give same worker to new owner
 	local newInventory = self:GetInventoryByUserId(toUserId)
-	
-	table.insert(
-		newInventory,
-		workerData
-	)
-	
+
+	table.insert(newInventory, workerData)
+
 	return workerData
 end
 
@@ -390,10 +332,10 @@ end
 function WorkerInventoryService.GetClientInventory(
 	self: WorkerInventoryService,
 	plr: Player
-): {WorkerTypes.ClientWorkerData}
+): { WorkerTypes.ClientWorkerData }
 	local inventory = self:GetInventory(plr)
-	local result: {WorkerTypes.ClientWorkerData} = {}
-	
+	local result: { WorkerTypes.ClientWorkerData } = {}
+
 	for _, workerData in inventory do
 		table.insert(result, {
 			Id = workerData.Id,
@@ -404,7 +346,7 @@ function WorkerInventoryService.GetClientInventory(
 			IsPlaced = workerData.State == "Placed",
 		})
 	end
-	
+
 	return result
 end
 

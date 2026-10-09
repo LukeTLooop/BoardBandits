@@ -2103,6 +2103,13 @@
                   ]
                 },
                 {
+                  "name": "WorkerAnimationConfig",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Config/WorkerAnimationConfig.lua"
+                  ]
+                },
+                {
                   "name": "WorkerConfig",
                   "className": "ModuleScript",
                   "filePaths": [
@@ -2123,10 +2130,24 @@
               "className": "Folder",
               "children": [
                 {
+                  "name": "CustomerTypes",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Types/CustomerTypes.lua"
+                  ]
+                },
+                {
                   "name": "FactoryDataTypes",
                   "className": "ModuleScript",
                   "filePaths": [
                     "src/shared/Types/FactoryDataTypes.lua"
+                  ]
+                },
+                {
+                  "name": "HUDTypes",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Types/HUDTypes.lua"
                   ]
                 },
                 {
@@ -2170,13 +2191,6 @@
                   "filePaths": [
                     "src/shared/Types/WorkerUpgradeTypes.lua"
                   ]
-                },
-                {
-                  "name": "HUDTypes",
-                  "className": "ModuleScript",
-                  "filePaths": [
-                    "src/shared/Types/HUDTypes.lua"
-                  ]
                 }
               ]
             },
@@ -2184,6 +2198,13 @@
               "name": "Utility",
               "className": "Folder",
               "children": [
+                {
+                  "name": "NumberFormatUtil",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/shared/Utility/NumberFormatUtil.lua"
+                  ]
+                },
                 {
                   "name": "Signal",
                   "className": "ModuleScript",
@@ -2196,13 +2217,6 @@
                   "className": "ModuleScript",
                   "filePaths": [
                     "src/shared/Utility/WorkerFilterUtil.lua"
-                  ]
-                },
-                {
-                  "name": "NumberFormatUtil",
-                  "className": "ModuleScript",
-                  "filePaths": [
-                    "src/shared/Utility/NumberFormatUtil.lua"
                   ]
                 }
               ]
@@ -2315,6 +2329,13 @@
               ]
             },
             {
+              "name": "HUDService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/HUDService.lua"
+              ]
+            },
+            {
               "name": "PlayerDataService",
               "className": "ModuleScript",
               "filePaths": [
@@ -2390,13 +2411,6 @@
               "filePaths": [
                 "src/server/Services/WorkerUpgradeService.lua"
               ]
-            },
-            {
-              "name": "HUDService",
-              "className": "ModuleScript",
-              "filePaths": [
-                "src/server/Services/HUDService.lua"
-              ]
             }
           ]
         },
@@ -2435,10 +2449,31 @@
               "className": "Folder",
               "children": [
                 {
+                  "name": "CustomerUIController",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/client/Controllers/CustomerUIController.lua"
+                  ]
+                },
+                {
                   "name": "PromptVisibilityController",
                   "className": "ModuleScript",
                   "filePaths": [
                     "src/client/Controllers/PromptVisibilityController.lua"
+                  ]
+                },
+                {
+                  "name": "TheftCombatController",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/client/Controllers/TheftCombatController.lua"
+                  ]
+                },
+                {
+                  "name": "TheftVisualController",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/client/Controllers/TheftVisualController.lua"
                   ]
                 },
                 {
@@ -2531,6 +2566,47 @@
                   ]
                 },
                 {
+                  "name": "HUD",
+                  "className": "Folder",
+                  "children": [
+                    {
+                      "name": "HUDAssets",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/HUD/HUDAssets.lua"
+                      ]
+                    },
+                    {
+                      "name": "HUDButton",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/HUD/HUDButton.lua"
+                      ]
+                    },
+                    {
+                      "name": "HUDDrawer",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/HUD/HUDDrawer.lua"
+                      ]
+                    },
+                    {
+                      "name": "PassiveHUD",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/HUD/PassiveHUD.lua"
+                      ]
+                    },
+                    {
+                      "name": "StatDisplay",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/HUD/StatDisplay.lua"
+                      ]
+                    }
+                  ]
+                },
+                {
                   "name": "Hooks",
                   "className": "Folder",
                   "children": [
@@ -2593,6 +2669,19 @@
                       "className": "ModuleScript",
                       "filePaths": [
                         "src/client/UI/Utility/UISounds.lua"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "World",
+                  "className": "Folder",
+                  "children": [
+                    {
+                      "name": "CustomerWorldUI",
+                      "className": "ModuleScript",
+                      "filePaths": [
+                        "src/client/UI/World/CustomerWorldUI.lua"
                       ]
                     }
                   ]

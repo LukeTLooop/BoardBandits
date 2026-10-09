@@ -17,6 +17,7 @@ local Worker = require(ServerScriptService.Classes.Worker)
 
 -- Config --
 local TemperConfig = require(ReplicatedStorage.Shared.Config.TemperConfig)
+local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
 
 -- Framework --
 local GameEvents = require(ServerScriptService.Framework.GameEvents)
@@ -26,6 +27,22 @@ local workerRemotes = ReplicatedStorage.Remotes.Workers
 
 local inventoryUpdated = workerRemotes.InventoryUpdated
 assert(inventoryUpdated:IsA("RemoteEvent"), "InventoryUpdated must be a RemoteEvent!")
+
+local bonkCarrier = workerRemotes.BonkCarrier
+assert(bonkCarrier:IsA("RemoteEvent"), "BonkCarrier must be a RemoteEvent!")
+
+local carryPoseChanged = workerRemotes.CarryPoseChanged
+assert(carryPoseChanged:IsA("RemoteEvent"), "CarryPoseChanged must be a RemoteEvent!")
+
+local bonkVisual = workerRemotes.BonkVisual
+assert(bonkVisual:IsA("RemoteEvent"), "BonkVisual must be a RemoteEvent!")
+
+-- Constants --
+local DEFAULT_CARRY_OFFSET = CFrame.new(0, 0.3, -1.7)
+
+local BONK_DISTANCE = 9
+local BONK_COOLDOWN = 0.8
+local BONK_IMPACT_DELAY = 0.24
 
 -- Helpers --
 local function isPointInsidePart(part: BasePart, worldPosition: Vector3): boolean
@@ -61,12 +78,39 @@ type CarriedWorkerData = {
 	CharacterRemovingConnection: RBXScriptConnection?,
 }
 
+type DroppedWorkerData = {
+	Worker: Worker.Worker,
+	OriginalOwnerUserId: number,
+	OriginalFactory: Factory.Factory,
+	OriginalSlotIndex: number,
+	PartStates: {
+		[BasePart]: PartState,
+	},
+	Prompt: ProximityPrompt,
+}
+
 type TheftServiceData = {
 	Inventory: WorkerInventoryService.WorkerInventoryService,
 	Factories: { [string]: Factory.Factory },
 	Economy: EconomyService.EconomyService,
-	CarriedWorkers: { [number]: CarriedWorkerData },
+
+	CarriedWorkers: {
+		[number]: CarriedWorkerData,
+	},
+	DroppedWorkers: {
+		[string]: DroppedWorkerData,
+	},
+
+	LastBonkAt: {
+		[number]: number,
+	},
+	BonkPending: {
+		[number]: boolean,
+	},
+
+	DroppedFolder: Folder,
 	CarriedFolder: Folder,
+
 	Started: boolean,
 }
 
@@ -87,12 +131,31 @@ function TheftService.new(
 		carriedFolder.Parent = workspace
 	end
 
+	local droppedExisting = workspace:FindFirstChild("DroppedWorkers")
+	local droppedFolder: Folder
+
+	if droppedExisting and droppedExisting:IsA("Folder") then
+		droppedFolder = droppedExisting
+	else
+		droppedFolder = Instance.new("Folder")
+		droppedFolder.Name = "DroppedWorkers"
+		droppedFolder.Parent = workspace
+	end
+
 	local data: TheftServiceData = {
 		Inventory = inventory,
 		Factories = {},
 		Economy = economy,
+
 		CarriedWorkers = {},
+		DroppedWorkers = {},
+
+		LastBonkAt = {},
+		BonkPending = {},
+
+		DroppedFolder = droppedFolder,
 		CarriedFolder = carriedFolder,
+
 		Started = false,
 	}
 
@@ -117,6 +180,18 @@ function TheftService.Start(self: TheftService): ()
 
 	-- Theft prompts
 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, plr: Player)
+		-- Dropped worker pickup
+		if prompt.Name == "DroppedWorkerPrompt" then
+			local workerId = prompt:GetAttribute("WorkerId")
+			if typeof(workerId) ~= "string" then
+				return
+			end
+
+			self:TryPickupDroppedWorker(plr, workerId)
+
+			return
+		end
+
 		-- Factory cash theft
 		if prompt.Name == "StealCashPrompt" then
 			local factoryId = prompt:GetAttribute("FactoryId")
@@ -199,6 +274,20 @@ function TheftService.Start(self: TheftService): ()
 			self:ReturnCarriedWorker(plr)
 		end
 	end)
+
+	-- Listen for bonk
+	bonkCarrier.OnServerEvent:Connect(function(attacker: Player, targetUserId: number)
+		if typeof(targetUserId) ~= "number" then
+			return
+		end
+
+		local target = Players:GetPlayerByUserId(targetUserId)
+		if not target then
+			return
+		end
+
+		self:TryBonkCarrier(attacker, target)
+	end)
 end
 
 -- Query --
@@ -266,6 +355,147 @@ function TheftService.TryStealFactoryCash(self: TheftService, thief: Player, fac
 end
 
 -- Grab --
+function TheftService.BeginCarryWorker(
+	self: TheftService,
+	carrier: Player,
+	worker: Worker.Worker,
+	originalOwnerUserId: number,
+	originalFactory: Factory.Factory,
+	originalSlotIndex: number,
+	existingPartStates: { [BasePart]: PartState }?
+): boolean
+	if self.CarriedWorkers[carrier.UserId] then
+		return false
+	end
+
+	local char = carrier.Character
+	if not char then
+		return false
+	end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 then
+		return false
+	end
+
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+
+	local workerModel = worker.Model
+	local workerRoot = worker:GetRootPart()
+	if not workerModel or not workerRoot then
+		return false
+	end
+
+	-- Preserve original physics
+	local partStates: { [BasePart]: PartState } = existingPartStates or {}
+	if not existingPartStates then
+		for _, descendant in workerModel:GetDescendants() do
+			if not descendant:IsA("BasePart") then
+				continue
+			end
+
+			partStates[descendant] = {
+				Anchored = descendant.Anchored,
+				CanCollide = descendant.CanCollide,
+				Massless = descendant.Massless,
+			}
+		end
+	end
+
+	-- Carry physics
+	worker:SetStationLocked(false)
+	worker:SetUprightLocked(false)
+
+	for _, descendant in workerModel:GetDescendants() do
+		if not descendant:IsA("BasePart") then
+			continue
+		end
+
+		descendant.Anchored = false
+		descendant.CanCollide = false
+		descendant.Massless = true
+	end
+
+	workerModel.Parent = self.CarriedFolder
+	workerRoot.AssemblyLinearVelocity = Vector3.zero
+	workerRoot.AssemblyAngularVelocity = Vector3.zero
+	workerRoot.CFrame = root.CFrame * DEFAULT_CARRY_OFFSET
+
+	-- Weld
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = "CarryWeld"
+	weld.Part0 = root
+	weld.Part1 = workerRoot
+	weld.Parent = workerRoot
+
+	-- Temper movement modifiers
+	local originalWalkSpeed = hum.WalkSpeed
+	local temperDefinition = TemperConfig[worker.Temper]
+
+	if temperDefinition then
+		hum.WalkSpeed = originalWalkSpeed * temperDefinition.CarrierSpeedMultiplier
+	end
+
+	-- Register carry
+	local carriedData: CarriedWorkerData = {
+		Worker = worker,
+		Carrier = carrier,
+		OriginalOwnerUserId = originalOwnerUserId,
+		OriginalFactory = originalFactory,
+		OriginalSlotIndex = originalSlotIndex,
+		OriginalWalkSpeed = originalWalkSpeed,
+		PartStates = partStates,
+		Weld = weld,
+		DeathConnection = nil,
+		CharacterRemovingConnection = nil,
+	}
+
+	self.CarriedWorkers[carrier.UserId] = carriedData
+	self.BonkPending[carrier.UserId] = nil
+	self.LastBonkAt[originalOwnerUserId] = nil
+
+	-- Send carry pose to clients
+	workerModel:SetAttribute("CarrierUserId", carrier.UserId)
+	carryPoseChanged:FireAllClients(carrier, workerRoot, true)
+
+	worker.State = "Carried"
+	worker.FactoryId = nil
+	worker.CarrierUserId = carrier.UserId
+	worker:SetActivityState("Carried")
+
+	-- Persistent state
+	if not self.Inventory:SetWorkerCarriedByUserId(originalOwnerUserId, worker.Id, carrier.UserId) then
+		self:ReturnCarriedWorker(carrier)
+
+		return false
+	end
+
+	-- Recovery listeners
+	carriedData.DeathConnection = hum.Died:Connect(function()
+		self:ReturnCarriedWorker(carrier)
+	end)
+
+	carriedData.CharacterRemovingConnection = carrier.CharacterRemoving:Connect(function()
+		self:ReturnCarriedWorker(carrier)
+	end)
+
+	local originalOwner = Players:GetPlayerByUserId(originalOwnerUserId)
+	if originalOwner then
+		inventoryUpdated:FireClient(originalOwner, worker.Id, "Carried")
+	end
+
+	-- Broadcast worker grabbed
+	local ownedWorker = self.Inventory:GetWorkerByUserId(originalOwnerUserId, worker.Id)
+	if ownedWorker then
+		GameEvents.WorkerGrabbed:Fire(carrier, originalOwnerUserId, ownedWorker)
+	end
+
+	return true
+end
+
 function TheftService.TryGrabWorker(
 	self: TheftService,
 	thief: Player,
@@ -327,14 +557,6 @@ function TheftService.TryGrabWorker(
 		return false
 	end
 
-	local carryPart: BasePart
-	local upperTorso = char:FindFirstChild("UpperTorso")
-	if not upperTorso or not upperTorso:IsA("BasePart") then
-		carryPart = root
-	else
-		carryPart = upperTorso
-	end
-
 	-- Worker physical validation
 	local workerModel = worker.Model
 	if not workerModel then
@@ -358,92 +580,301 @@ function TheftService.TryGrabWorker(
 		return false
 	end
 
-	-- Save physical state
-	local partStates: { [BasePart]: PartState } = {}
+	local carried = self:BeginCarryWorker(thief, worker, originalOwnerUserId, factory, slotIndex, nil)
 
-	for _, descendant in workerModel:GetDescendants() do
-		if not descendant:IsA("BasePart") then
-			continue
-		end
-
-		partStates[descendant] = {
-			Anchored = descendant.Anchored,
-			CanCollide = descendant.CanCollide,
-			Massless = descendant.Massless,
-		}
-
-		descendant.Anchored = false
-		descendant.CanCollide = false
-		descendant.Massless = true
+	if carried then
+		return true
 	end
 
-	-- Move worker into carried folder
-	workerModel.Parent = self.CarriedFolder
-	workerModel:PivotTo(carryPart.CFrame * CFrame.new(0, 0, -2.5))
-
-	-- Weld to player
-	local weld = Instance.new("WeldConstraint")
-	weld.Name = "CarryWeld"
-	weld.Part0 = carryPart
-	weld.Part1 = workerRoot
-	weld.Parent = workerRoot
-
-	-- Temper movement modifiers
-	local originalWalkSpeed = hum.WalkSpeed
-	local temperDefinition = TemperConfig[worker.Temper]
-
-	if temperDefinition then
-		hum.WalkSpeed = originalWalkSpeed * temperDefinition.CarrierSpeedMultiplier
+	-- Carry failed after worker detached, put back safely
+	local restored = factory:PlaceWorkerInSlot(worker, slotIndex)
+	if restored then
+		return false
 	end
 
-	-- Register carry before updating persistent state
-	local carriedData: CarriedWorkerData = {
+	-- Last resort fallback, loose runtime worker still exists
+	worker:DestroyModel()
+	self.Inventory:SetWorkerStoredByUserId(originalOwnerUserId, worker.Id)
+
+	return false
+end
+
+-- Drop worker --
+function TheftService.DropCarriedWorker(self: TheftService, carrier: Player): boolean
+	local carriedData = self.CarriedWorkers[carrier.UserId]
+	if not carriedData then
+		return false
+	end
+
+	local worker = carriedData.Worker
+	local workerModel = worker.Model
+	local workerRoot = worker:GetRootPart()
+
+	if not workerModel or not workerRoot then
+		return false
+	end
+
+	local char = carrier.Character
+	local carrierRoot = if char then char:FindFirstChild("HumanoidRootPart") else nil
+	if not carrierRoot or not carrierRoot:IsA("BasePart") then
+		return false
+	end
+
+	-- Determine ground position
+	local forward = Vector3.new(carrierRoot.CFrame.LookVector.X, 0, carrierRoot.CFrame.LookVector.Z).Unit
+
+	local rayOrigin = carrierRoot.Position + forward * 2 + Vector3.new(0, 3, 0)
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.FilterDescendantsInstances = { char, workerModel }
+
+	local result = workspace:Raycast(rayOrigin, Vector3.new(0, -12, 0), rayParams)
+
+	local groundPosition = if result then result.Position else carrierRoot.Position + forward * 2
+	local _boundsCFrame, boundsSize = workerModel:GetBoundingBox()
+	local workerPosition = groundPosition + Vector3.new(0, boundsSize.Y * 0.5 + 0.1, 0)
+	local dropCFrame = CFrame.lookAt(workerPosition, workerPosition + forward)
+
+	-- End carry
+	self:CleanupCarry(carrier, carriedData)
+	self:RestoreWorkerPartStates(carriedData)
+
+	-- Drop into world
+	workerModel.Parent = self.DroppedFolder
+	workerRoot.CFrame = dropCFrame
+	workerRoot.AssemblyLinearVelocity = Vector3.zero
+	workerRoot.AssemblyAngularVelocity = Vector3.zero
+
+	worker:SetStationCFrame(dropCFrame)
+	worker:SetUprightLocked(true)
+	worker:SetActivityState("Idle")
+	worker.State = "Dropped"
+	worker.FactoryId = nil
+	worker.CarrierUserId = nil
+
+	self.Inventory:SetWorkerDroppedByUserId(carriedData.OriginalOwnerUserId, worker.Id)
+
+	-- Instant pickup
+	local definition = WorkerConfig[worker.WorkerType]
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "DroppedWorkerPrompt"
+	prompt.ActionText = "Grab"
+	prompt.ObjectText = if definition then definition.DisplayName else worker.WorkerType
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 8
+	prompt.RequiresLineOfSight = false
+	prompt.ClickablePrompt = true
+	prompt:SetAttribute("WorkerId", worker.Id)
+	prompt.Parent = workerRoot
+
+	self.DroppedWorkers[worker.Id] = {
 		Worker = worker,
-		Carrier = thief,
-		OriginalOwnerUserId = originalOwnerUserId,
-		OriginalFactory = factory,
-		OriginalSlotIndex = slotIndex,
-		OriginalWalkSpeed = originalWalkSpeed,
-		PartStates = partStates,
-		Weld = weld,
-		DeathConnection = nil,
-		CharacterRemovingConnection = nil,
+		OriginalOwnerUserId = carriedData.OriginalOwnerUserId,
+		OriginalFactory = carriedData.OriginalFactory,
+		OriginalSlotIndex = carriedData.OriginalSlotIndex,
+		PartStates = carriedData.PartStates,
+		Prompt = prompt,
 	}
 
-	self.CarriedWorkers[thief.UserId] = carriedData
+	local owner = Players:GetPlayerByUserId(carriedData.OriginalOwnerUserId)
+	if owner then
+		inventoryUpdated:FireClient(owner, worker.Id, "Dropped")
+	end
 
-	-- Runtime state
-	worker.State = "Carried"
-	worker.FactoryId = nil
-	worker.CarrierUserId = thief.UserId
+	return true
+end
 
-	-- Persistent state
-	local stateUpdated = self.Inventory:SetWorkerCarriedByUserId(originalOwnerUserId, worker.Id, thief.UserId)
-	if not stateUpdated then
-		warn("[THEFT] Failed to enter carried state!")
+function TheftService.TryPickupDroppedWorker(self: TheftService, plr: Player, workerId: string): boolean
+	local droppedData = self.DroppedWorkers[workerId]
+	if not droppedData then
+		return false
+	end
 
-		self:ReturnCarriedWorker(thief)
+	local worker = droppedData.Worker
+	local workerRoot = worker:GetRootPart()
+	if not workerRoot then
+		return false
+	end
+
+	local char = plr.Character
+	local root = if char then char:FindFirstChild("HumanoidRootPart") else nil
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+
+	if (root.Position - workerRoot.Position).Magnitude > 10 then
+		return false
+	end
+
+	-- Original owner instantly recovers worker
+	if plr.UserId == droppedData.OriginalOwnerUserId then
+		return self:RecoverDroppedWorker(workerId)
+	end
+
+	-- Other players must have somewhere to steal it to
+	if not self:GetFactoryOwnedByUserId(plr.UserId) then
+		return false
+	end
+
+	if self.CarriedWorkers[plr.UserId] then
+		return false
+	end
+
+	droppedData.Prompt.Enabled = false
+
+	worker:SetUprightLocked(false)
+
+	local success = self:BeginCarryWorker(
+		plr,
+		worker,
+		droppedData.OriginalOwnerUserId,
+		droppedData.OriginalFactory,
+		droppedData.OriginalSlotIndex,
+		droppedData.PartStates
+	)
+
+	if not success then
+		if droppedData.Prompt.Parent then
+			droppedData.Prompt.Enabled = true
+		end
 
 		return false
 	end
 
-	-- Carrier dies
-	carriedData.DeathConnection = hum.Died:Connect(function()
-		self:ReturnCarriedWorker(thief)
-	end)
+	droppedData.Prompt:Destroy()
 
-	-- Carrier resets/char disappears
-	carriedData.CharacterRemovingConnection = thief.CharacterRemoving:Connect(function()
-		self:ReturnCarriedWorker(thief)
-	end)
+	self.DroppedWorkers[workerId] = nil
 
-	-- Tell original owner client worker has left factory
-	local originalOwnerPlayer = Players:GetPlayerByUserId(originalOwnerUserId)
-	if originalOwnerPlayer then
-		inventoryUpdated:FireClient(originalOwnerPlayer, worker.Id, "Carried")
+	return true
+end
+
+function TheftService.RecoverDroppedWorker(self: TheftService, workerId: string): boolean
+	local droppedData = self.DroppedWorkers[workerId]
+	if not droppedData then
+		return false
 	end
 
-	GameEvents.WorkerGrabbed:Fire(thief, originalOwnerUserId, ownedWorker)
+	droppedData.Prompt:Destroy()
+	self.DroppedWorkers[workerId] = nil
+
+	local worker = droppedData.Worker
+	worker:SetUprightLocked(false)
+	worker.State = "Stored"
+	worker.FactoryId = nil
+	worker.CarrierUserId = nil
+
+	local factory = droppedData.OriginalFactory
+	local slotIndex = droppedData.OriginalSlotIndex
+
+	-- Put back where stolen from
+	if not factory:IsSlotOccupied(slotIndex) then
+		if worker.Model then
+			worker.Model.Parent = factory.Model
+		end
+
+		local placed = factory:PlaceWorkerInSlot(worker, slotIndex)
+		if placed then
+			local updated = self.Inventory:SetWorkerPlacedByUserId(
+				droppedData.OriginalOwnerUserId,
+				worker.Id,
+				factory.Id,
+				slotIndex
+			)
+			if updated then
+				local ownedWorker = self.Inventory:GetWorkerByUserId(droppedData.OriginalOwnerUserId, worker.Id)
+				local owner = Players:GetPlayerByUserId(droppedData.OriginalOwnerUserId)
+				if owner then
+					inventoryUpdated:FireClient(owner, worker.Id, "Placed")
+				end
+
+				-- Broadcast worker recovered
+				if ownedWorker then
+					GameEvents.WorkerRecovered:Fire(droppedData.OriginalOwnerUserId, ownedWorker)
+				end
+
+				return true
+			end
+		end
+	end
+
+	-- Safety fallback if original slot is occupied
+	worker:DestroyModel()
+	self.Inventory:SetWorkerStoredByUserId(droppedData.OriginalOwnerUserId, worker.Id)
+
+	return true
+end
+
+-- Bonk player --
+function TheftService.TryBonkCarrier(self: TheftService, attacker: Player, target: Player): boolean
+	if attacker == target then
+		return false
+	end
+
+	local carriedData = self.CarriedWorkers[target.UserId]
+	if not carriedData then
+		return false
+	end
+
+	-- Only original owner can bonk someone carrying their worker
+	if carriedData.OriginalOwnerUserId ~= attacker.UserId then
+		return false
+	end
+
+	if self.BonkPending[target.UserId] then
+		return false
+	end
+
+	local now = os.clock()
+	local lastBonk = self.LastBonkAt[attacker.UserId] or 0
+
+	if now - lastBonk < BONK_COOLDOWN then
+		return false
+	end
+
+	local attackerChar = attacker.Character
+	local targetChar = target.Character
+	if not attackerChar or not targetChar then
+		return false
+	end
+
+	local attackerRoot = attackerChar:FindFirstChild("HumanoidRootPart")
+	local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+	if not attackerRoot or not attackerRoot:IsA("BasePart") or not targetRoot or not targetRoot:IsA("BasePart") then
+		return false
+	end
+
+	if (attackerRoot.Position - targetRoot.Position).Magnitude > BONK_DISTANCE then
+		return false
+	end
+
+	self.LastBonkAt[attacker.UserId] = now
+	self.BonkPending[target.UserId] = true
+
+	-- Play bonk animation
+	bonkVisual:FireAllClients(attacker, target)
+
+	-- Server is authoritative over impact
+	task.delay(BONK_IMPACT_DELAY, function()
+		local currentCarry = self.CarriedWorkers[target.UserId]
+		if currentCarry ~= carriedData then
+			self.BonkPending[target.UserId] = nil
+
+			return
+		end
+
+		local dropped = self:DropCarriedWorker(target)
+		if dropped then
+			local direction = targetRoot.Position - attackerRoot.Position
+			if direction.Magnitude > 0 then
+				direction = direction.Unit
+			end
+
+			targetRoot.AssemblyLinearVelocity += direction * 13 + Vector3.new(0, 5, 0)
+		end
+
+		self.BonkPending[target.UserId] = nil
+	end)
 
 	return true
 end
@@ -509,10 +940,7 @@ function TheftService.ReturnCarriedWorker(self: TheftService, carrier: Player): 
 	worker.FactoryId = nil
 	worker.CarrierUserId = nil
 
-	if worker.Model then
-		worker.Model:Destroy()
-		worker.Model = nil
-	end
+	worker:DestroyModel()
 
 	local stateUpdated = self.Inventory:SetWorkerStoredByUserId(originalOwnerUserId, worker.Id)
 	if not stateUpdated then
@@ -550,11 +978,26 @@ function TheftService.ReturnWorkersOwnedByUserId(self: TheftService, ownerUserId
 	for _, carrier in carriers do
 		self:ReturnCarriedWorker(carrier)
 	end
+
+	local droppedWorkerIds: { string } = {}
+
+	for workerId, droppedData in self.DroppedWorkers do
+		if droppedData.OriginalOwnerUserId ~= ownerUserId then
+			continue
+		end
+
+		table.insert(droppedWorkerIds, workerId)
+	end
+
+	for _, workerId in droppedWorkerIds do
+		self:RecoverDroppedWorker(workerId)
+	end
 end
 
 function TheftService.CleanupCarry(self: TheftService, carrier: Player, carriedData: CarriedWorkerData): ()
 	-- Clear carry state first
 	self.CarriedWorkers[carrier.UserId] = nil
+	self.BonkPending[carrier.UserId] = nil
 
 	-- Disconnect listeners
 	if carriedData.DeathConnection then
@@ -566,6 +1009,14 @@ function TheftService.CleanupCarry(self: TheftService, carrier: Player, carriedD
 		carriedData.CharacterRemovingConnection:Disconnect()
 		carriedData.CharacterRemovingConnection = nil
 	end
+
+	-- Stop procedural carry pose
+	local workerModel = carriedData.Worker.Model
+	if workerModel then
+		workerModel:SetAttribute("CarrierUserId", nil)
+	end
+
+	carryPoseChanged:FireAllClients(carrier, nil, false)
 
 	-- Destroy carried weld
 	if carriedData.Weld then
@@ -653,10 +1104,7 @@ function TheftService.ClaimCarriedWorker(self: TheftService, carrier: Player, fa
 	worker:ClearFactoryCallbacks()
 
 	-- No world model necessary for stored worker
-	if worker.Model then
-		worker.Model:Destroy()
-		worker.Model = nil
-	end
+	worker:DestroyModel()
 
 	-- Client inventory updates
 	local originalOwner = Players:GetPlayerByUserId(originalOwnerUserId)
