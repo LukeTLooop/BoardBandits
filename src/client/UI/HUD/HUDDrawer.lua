@@ -8,7 +8,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 
 local React = require(Packages:WaitForChild("React"))
-local ReactRoblox = require(Packages:WaitForChild("ReactRoblox"))
 
 -- UI --
 local Theme = require(script.Parent.Parent:WaitForChild("Theme"))

@@ -15,7 +15,6 @@ local WorkerConfig = require(ReplicatedStorage.Shared.Config.WorkerConfig)
 local ProgressionConfig = require(ReplicatedStorage.Shared.Config.ProgressionConfig)
 
 -- Types --
-local WorkerTypes = require(ReplicatedStorage.Shared.Types.WorkerTypes)
 local WorkerShopTypes = require(ReplicatedStorage.Shared.Types.WorkerShopTypes)
 
 -- Framework --

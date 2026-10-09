@@ -383,7 +383,7 @@ function FactoryService.ClaimFactory(self: FactoryService, plr: Player, factoryM
 	return factory
 end
 
-function FactoryService.CleanupFactoryInteractions(self: FactoryService, factory: Factory.Factory): ()
+function FactoryService.CleanupFactoryInteractions(_self: FactoryService, factory: Factory.Factory): ()
 	for _, slotFolder in factory.SlotFolders do
 		local placementPart = slotFolder:FindFirstChild("PlacementPart")
 		if not placementPart or not placementPart:IsA("BasePart") then
@@ -450,7 +450,7 @@ function FactoryService.ReleaseFactory(self: FactoryService, plr: Player): boole
 		spawnpoint.Enabled = false
 
 		if plr.RespawnLocation == spawnpoint then
-			plr.RespawnLocation = nil
+			(plr :: any).RespawnLocation = nil
 		end
 	end
 
@@ -469,7 +469,7 @@ function FactoryService.ReleaseFactory(self: FactoryService, plr: Player): boole
 	return true
 end
 
-function FactoryService.SetupTerritory(self: FactoryService, factory: Factory.Factory): ()
+function FactoryService.SetupTerritory(_self: FactoryService, factory: Factory.Factory): ()
 	local territory = factory.Model:FindFirstChild("Territory")
 	if not territory or not territory:IsA("BasePart") then
 		warn(factory.Id, "is missing Territory!")

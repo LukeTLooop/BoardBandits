@@ -227,39 +227,43 @@ local function PassiveHUD(props: Props)
 		openDrawer,
 	})
 
-	React.useEffect(function()
-		local currentState = props.State
-		local previousState = previousStateRef.current
+	React.useEffect(
+		function()
+			local currentState = props.State
+			local previousState = previousStateRef.current
 
-		if currentState and previousState then
-			if openDrawer ~= "Inventory" then
-				local inventoryDelta = getInventoryDelta(previousState.FactoryInventory, currentState.FactoryInventory)
+			if currentState and previousState then
+				if openDrawer ~= "Inventory" then
+					local inventoryDelta =
+						getInventoryDelta(previousState.FactoryInventory, currentState.FactoryInventory)
 
-				if inventoryDelta > 0 then
-					setInventoryUnread(function(current)
-						return current + inventoryDelta
-					end)
+					if inventoryDelta > 0 then
+						setInventoryUnread(function(current)
+							return current + inventoryDelta
+						end)
+					end
+				end
+
+				if openDrawer ~= "Workers" then
+					local workerDelta = getWorkerDelta(previousState.Workers, currentState.Workers)
+
+					if workerDelta > 0 then
+						setWorkerUnread(function(current)
+							return current + workerDelta
+						end)
+					end
 				end
 			end
 
-			if openDrawer ~= "Workers" then
-				local workerDelta = getWorkerDelta(previousState.Workers, currentState.Workers)
+			previousStateRef.current = currentState
 
-				if workerDelta > 0 then
-					setWorkerUnread(function(current)
-						return current + workerDelta
-					end)
-				end
-			end
-		end
-
-		previousStateRef.current = currentState
-
-		return nil
-	end, {
-		props.State,
-		openDrawer,
-	})
+			return nil
+		end,
+		{
+			props.State,
+			openDrawer,
+		} :: { any }
+	)
 
 	if not props.Visible then
 		return nil

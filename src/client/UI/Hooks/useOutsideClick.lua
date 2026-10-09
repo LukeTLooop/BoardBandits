@@ -21,38 +21,41 @@ local function isPointInsideGui(gui: GuiObject, point: Vector2): boolean
 end
 
 local function useOutsideClick(windowRef: { current: Frame? }, enabled: boolean, onOutsideClick: () -> ())
-	React.useEffect(function()
-		if not enabled then
-			return nil
-		end
-
-		local connection = UserInputService.InputBegan:Connect(function(input: InputObject)
-			local inputType = input.UserInputType
-			if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
-				return
+	React.useEffect(
+		function(): nil | () -> ()
+			if not enabled then
+				return nil
 			end
 
-			local window = windowRef.current
-			if not window then
-				return
+			local connection = UserInputService.InputBegan:Connect(function(input: InputObject)
+				local inputType = input.UserInputType
+				if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
+					return
+				end
+
+				local window = windowRef.current
+				if not window then
+					return
+				end
+
+				local point = Vector2.new(input.Position.X, input.Position.Y)
+
+				if isPointInsideGui(window, point) then
+					return
+				end
+
+				onOutsideClick()
+			end)
+
+			return function()
+				connection:Disconnect()
 			end
-
-			local point = Vector2.new(input.Position.X, input.Position.Y)
-
-			if isPointInsideGui(window, point) then
-				return
-			end
-
-			onOutsideClick()
-		end)
-
-		return function()
-			connection:Disconnect()
-		end
-	end, {
-		enabled,
-		onOutsideClick,
-	})
+		end,
+		{
+			enabled,
+			onOutsideClick,
+		} :: { any }
+	)
 end
 
 return useOutsideClick

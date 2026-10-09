@@ -1,16 +1,7 @@
 --!strict
--- Worker config
+-- Worker Config
 
-export type OutputProgressionEntry = {
-	RequiredLevel: number,
-	Item: string,
-}
-
-export type RecipeProgressionEntry = {
-	RequiredLevel: number,
-	Recipe: string,
-}
-
+-- Private Types --
 type BaseWorkerDefinition = {
 	DisplayName: string,
 	ModelName: string,
@@ -42,15 +33,35 @@ type AssemblerSpecificDefinition = {
 	RecipeProgression: { RecipeProgressionEntry },
 }
 
+-- Public Types --
+export type OutputProgressionEntry = {
+	RequiredLevel: number,
+	Item: string,
+}
+
+export type RecipeProgressionEntry = {
+	RequiredLevel: number,
+	Recipe: string,
+}
+
 export type ProducerDefinition = BaseWorkerDefinition & ProducerSpecificDefinition
 
 export type AssemblerDefinition = BaseWorkerDefinition & AssemblerSpecificDefinition
 
-export type WorkerDefinition = BaseWorkerDefinition & (ProducerSpecificDefinition | AssemblerSpecificDefinition)
+export type WorkerDefinition = ProducerDefinition | AssemblerDefinition
+
+-- Worker Definition Constructors --
+local function producer(definition: ProducerDefinition): ProducerDefinition
+	return definition
+end
+
+local function assembler(definition: AssemblerDefinition): AssemblerDefinition
+	return definition
+end
 
 local WorkerConfig: { [string]: WorkerDefinition } = {
 	-- Bearing creatures
-	Gloop = {
+	Gloop = producer({
 		DisplayName = "Gloop",
 		ModelName = "Gloop",
 		Rarity = "Common",
@@ -70,7 +81,7 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 			650, -- 4 -> 5
 		},
 
-		WorkerType = "Producer",
+		WorkerType = "Producer" :: "Producer",
 
 		OutputProgression = {
 			{
@@ -89,10 +100,10 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 
 		ProductionInterval = 4,
 		OutputAmount = 1,
-	},
+	}),
 
 	-- Trucks creatures
-	Bonk = {
+	Bonk = producer({
 		DisplayName = "Bonk",
 		ModelName = "Bonk",
 		Rarity = "Common",
@@ -112,7 +123,7 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 			650, -- 4 -> 5
 		},
 
-		WorkerType = "Producer",
+		WorkerType = "Producer" :: "Producer",
 
 		OutputProgression = {
 			{
@@ -131,10 +142,10 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 
 		ProductionInterval = 4,
 		OutputAmount = 1,
-	},
+	}),
 
 	-- Wheels creatures
-	Squish = {
+	Squish = producer({
 		DisplayName = "Squish",
 		ModelName = "Squish",
 		Rarity = "Common",
@@ -154,7 +165,7 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 			650, -- 4 -> 5
 		},
 
-		WorkerType = "Producer",
+		WorkerType = "Producer" :: "Producer",
 
 		OutputProgression = {
 			{
@@ -173,10 +184,10 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 
 		ProductionInterval = 4,
 		OutputAmount = 1,
-	},
+	}),
 
 	-- Deck creatures
-	Plank = {
+	Plank = producer({
 		DisplayName = "Plank",
 		ModelName = "Plank",
 		Rarity = "Common",
@@ -196,7 +207,7 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 			650, -- 4 -> 5
 		},
 
-		WorkerType = "Producer",
+		WorkerType = "Producer" :: "Producer",
 
 		OutputProgression = {
 			{
@@ -215,10 +226,10 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 
 		ProductionInterval = 4,
 		OutputAmount = 1,
-	},
+	}),
 
 	-- Assembly creatures
-	Patch = {
+	Patch = assembler({
 		DisplayName = "Patch",
 		ModelName = "Patch",
 		Rarity = "Common",
@@ -238,7 +249,7 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 			900, -- 4 -> 5
 		},
 
-		WorkerType = "Assembler",
+		WorkerType = "Assembler" :: "Assembler",
 
 		RecipeProgression = {
 			{
@@ -254,7 +265,7 @@ local WorkerConfig: { [string]: WorkerDefinition } = {
 				Recipe = "GoodSkateboard",
 			},
 		},
-	},
+	}),
 }
 
 return WorkerConfig

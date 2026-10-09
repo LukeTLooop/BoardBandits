@@ -65,17 +65,20 @@ local function Button(props: Props)
 	end
 
 	-- Reset visual state on disabled
-	React.useEffect(function()
-		hoveredRef.current = false
+	React.useEffect(
+		function()
+			hoveredRef.current = false
 
-		animateScale(NORMAL_SCALE)
-		animateColor(if disabled then Theme.Color.Disabled else baseColor)
+			animateScale(NORMAL_SCALE)
+			animateColor(if disabled then Theme.Color.Disabled else baseColor)
 
-		return nil
-	end, {
-		disabled,
-		baseColor,
-	})
+			return nil
+		end,
+		{
+			disabled,
+			baseColor,
+		} :: { any }
+	)
 
 	-- Render
 	return e("TextButton", {

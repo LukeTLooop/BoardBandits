@@ -183,7 +183,7 @@ function Worker.UpdateProducer(self: Worker, dt: number, definition: WorkerConfi
 end
 
 -- Assembler --
-function Worker.UpdateAssembler(self: Worker, dt: number, definition: WorkerConfig.AssemblerDefinition): ()
+function Worker.UpdateAssembler(self: Worker, dt: number, _definition: WorkerConfig.AssemblerDefinition): ()
 	-- Start new assembly job
 	if not self.IsProducing then
 		local recipeId = self:GetRecipeId()
@@ -277,7 +277,7 @@ function Worker.SetActivityState(self: Worker, state: WorkerTypes.WorkerActivity
 	-- Missing animation fallback to Idle
 	local nextTrack = self.AnimationTracks[state]
 	if not nextTrack and state ~= "Idle" then
-		nextTrack = self.AnimationTracks.Idle
+		nextTrack = self.AnimationTracks["Idle" :: WorkerTypes.WorkerActivityState]
 	end
 
 	self.CurrentAnimationTrack = nextTrack

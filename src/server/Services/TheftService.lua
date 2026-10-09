@@ -626,7 +626,13 @@ function TheftService.DropCarriedWorker(self: TheftService, carrier: Player): bo
 	local rayOrigin = carrierRoot.Position + forward * 2 + Vector3.new(0, 3, 0)
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
-	rayParams.FilterDescendantsInstances = { char, workerModel }
+
+	local excludedInstances: { Instance } = { workerModel }
+	if char then
+		table.insert(excludedInstances, char)
+	end
+
+	rayParams.FilterDescendantsInstances = excludedInstances
 
 	local result = workspace:Raycast(rayOrigin, Vector3.new(0, -12, 0), rayParams)
 
@@ -1038,7 +1044,7 @@ function TheftService.CleanupCarry(self: TheftService, carrier: Player, carriedD
 	hum.WalkSpeed = carriedData.OriginalWalkSpeed
 end
 
-function TheftService.RestoreWorkerPartStates(self: TheftService, carriedData: CarriedWorkerData): ()
+function TheftService.RestoreWorkerPartStates(_self: TheftService, carriedData: CarriedWorkerData): ()
 	for part, state in carriedData.PartStates do
 		if not part.Parent then
 			continue

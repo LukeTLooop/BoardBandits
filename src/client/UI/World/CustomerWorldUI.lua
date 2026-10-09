@@ -39,33 +39,36 @@ local function CustomerBillboard(props: Props)
 	local remaining, setRemaining = React.useState(0)
 
 	-- Client-side countdown
-	React.useEffect(function()
-		local alive = true
+	React.useEffect(
+		function()
+			local alive = true
 
-		if props.Status ~= "Waiting" then
-			setRemaining(0)
+			if props.Status ~= "Waiting" then
+				setRemaining(0)
+
+				return function()
+					alive = false
+				end
+			end
+
+			task.spawn(function()
+				while alive do
+					local timeLeft = math.max(0, props.WaitEndTime - workspace:GetServerTimeNow())
+					setRemaining(math.ceil(timeLeft))
+
+					task.wait(0.1)
+				end
+			end)
 
 			return function()
 				alive = false
 			end
-		end
-
-		task.spawn(function()
-			while alive do
-				local timeLeft = math.max(0, props.WaitEndTime - workspace:GetServerTimeNow())
-				setRemaining(math.ceil(timeLeft))
-
-				task.wait(0.1)
-			end
-		end)
-
-		return function()
-			alive = false
-		end
-	end, {
-		props.Status,
-		props.WaitEndTime,
-	})
+		end,
+		{
+			props.Status,
+			props.WaitEndTime,
+		} :: { any }
+	)
 
 	-- Resolve presentation
 	local customerDefinition = CustomerConfig[props.CustomerType]

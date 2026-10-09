@@ -5,7 +5,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 
 -- Remotes --
 local workerRemotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Workers")
@@ -50,7 +49,7 @@ local function cleanupCarryPose(carrier: Player): ()
 end
 
 -- Grip Targets --
-local function createCarryGripTargets(workerRoot: BasePart): (Attachment, Attachment, { Instance })
+local function _createCarryGripTargets(workerRoot: BasePart): (Attachment, Attachment, { Instance })
 	local created: { Instance } = {}
 
 	local workerModel = workerRoot:FindFirstAncestorOfClass("Model")
@@ -93,7 +92,7 @@ local function createCarryGripTargets(workerRoot: BasePart): (Attachment, Attach
 end
 
 -- Arm Poles --
-local function createArmPole(char: Model, side: "Left" | "Right"): Attachment?
+local function _createArmPole(char: Model, side: "Left" | "Right"): Attachment?
 	local root = char:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
 		return nil
@@ -237,8 +236,8 @@ RunService.PreSimulation:Connect(function()
 			local shoulder = CFrame.Angles(math.rad(-95), 0, math.rad(-25))
 			local elbow = CFrame.Angles(math.rad(45), 0, 0)
 
-			pose.RightShoulder.Transform = CFrame.identity:Lerp(shoulder, alpha)
-			pose.RightElbow.Transform = CFrame.identity:Lerp(elbow, alpha)
+			pose.RightShoulder.Transform = CFrame.new():Lerp(shoulder, alpha)
+			pose.RightElbow.Transform = CFrame.new():Lerp(elbow, alpha)
 
 		-- BONK
 		elseif elapsed < 0.32 then
