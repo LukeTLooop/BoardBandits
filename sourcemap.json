@@ -2297,6 +2297,19 @@
           ]
         },
         {
+          "name": "Managers",
+          "className": "Folder",
+          "children": [
+            {
+              "name": "GameStateManager",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Managers/GameStateManager.lua"
+              ]
+            }
+          ]
+        },
+        {
           "name": "Services",
           "className": "Folder",
           "children": [
@@ -2333,6 +2346,13 @@
               "className": "ModuleScript",
               "filePaths": [
                 "src/server/Services/HUDService.lua"
+              ]
+            },
+            {
+              "name": "ModifierService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/ModifierService.lua"
               ]
             },
             {
@@ -2410,6 +2430,33 @@
               "className": "ModuleScript",
               "filePaths": [
                 "src/server/Services/WorkerUpgradeService.lua"
+              ]
+            },
+            {
+              "name": "EnvironmentService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/EnvironmentService.lua"
+              ]
+            },
+            {
+              "name": "MusicService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/MusicService.lua"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Shared",
+          "className": "Folder",
+          "children": [
+            {
+              "name": "PriorityState",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Shared/PriorityState.lua"
               ]
             }
           ]
