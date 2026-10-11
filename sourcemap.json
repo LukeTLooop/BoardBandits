@@ -2445,6 +2445,13 @@
               "filePaths": [
                 "src/server/Services/MusicService.lua"
               ]
+            },
+            {
+              "name": "ServerEventService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/ServerEventService.lua"
+              ]
             }
           ]
         },
@@ -2479,6 +2486,53 @@
                 "src/server/Types/ServiceTypes.lua"
               ]
             }
+          ]
+        },
+        {
+          "name": "Events",
+          "className": "Folder",
+          "children": [
+            {
+              "name": "EventTypes",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Events/EventTypes.lua"
+              ]
+            },
+            {
+              "name": "EventContext",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Events/EventContext.lua"
+              ]
+            },
+            {
+              "name": "Definitions",
+              "className": "Folder",
+              "children": [
+                {
+                  "name": "DoubleProduction",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/server/Events/Definitions/DoubleProduction.lua"
+                  ]
+                },
+                {
+                  "name": "FactoryOverdrive",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/server/Events/Definitions/FactoryOverdrive.lua"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "EventTest",
+          "className": "Script",
+          "filePaths": [
+            "src/server/EventTest.server.lua"
           ]
         }
       ]
