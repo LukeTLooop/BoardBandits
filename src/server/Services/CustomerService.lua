@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local HTTPService = game:GetService("HttpService")
 
+local ModifierService = require(ServerScriptService.Services.ModifierService)
+
 local CustomerConfig = require(ReplicatedStorage.Shared.Config.CustomerConfig)
 local ItemConfig = require(ReplicatedStorage.Shared.Config.ItemConfig)
 local Customer = require(ServerScriptService.Classes.Customer)
@@ -68,11 +70,15 @@ function CustomerService.StartFactory(self: CustomerService, factory: Factory.Fa
 
 	task.spawn(function()
 		while state.Running do
-			self:TrySpawnCustomer(state)
+			if ModifierService.GetModifier("CustomerSpawnRate") > 0 then
+				self:TrySpawnCustomer(state)
+			end
 
-			local waitTime = math.random(MIN_SPAWN_INTERVAL * 100, MAX_SPAWN_INTERVAL * 100) / 100
-
-			task.wait(waitTime)
+			local remaining = rng:NextNumber(MIN_SPAWN_INTERVAL, MAX_SPAWN_INTERVAL)
+			while state.Running and remaining > 0 do
+				local elapsed = task.wait(0.1)
+				remaining -= elapsed * ModifierService.GetModifier("CustomerSpawnRate")
+			end
 		end
 	end)
 end
@@ -106,7 +112,7 @@ function CustomerService.StopFactory(self: CustomerService, factoryId: string): 
 	end
 end
 
-function CustomerService.RepositionQueue(self: CustomerService, state: FactoryQueueState): ()
+function CustomerService.RepositionQueue(_self: CustomerService, state: FactoryQueueState): ()
 	for index, customer in state.Waiting do
 		local queueSpot = state.Factory.CustomerQueueSpots[index]
 		if not queueSpot then
@@ -308,7 +314,7 @@ function CustomerService.TrySpawnCustomer(self: CustomerService, state: FactoryQ
 	return true
 end
 
-function CustomerService.ChooseDesiredItemForFactory(self: CustomerService, factory: Factory.Factory): string?
+function CustomerService.ChooseDesiredItemForFactory(_self: CustomerService, factory: Factory.Factory): string?
 	local availableItems = factory:GetAvailableSellableItems()
 	if #availableItems == 0 then
 		return nil

@@ -6,6 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 
+local ModifierService = require(ServerScriptService.Services.ModifierService)
+
 -- Classes --
 local Worker = require(ServerScriptService.Classes.Worker)
 
@@ -112,9 +114,17 @@ function WorkerService.Start(self: WorkerService)
 	end
 	self.Started = true
 
-	RunService.Heartbeat:Connect(function(dt)
+	RunService.Heartbeat:Connect(function(dt: number)
+		local productionSpeed = ModifierService.GetModifier("ProductionSpeed")
+		local workerSpeed = ModifierService.GetModifier("WorkerSpeed")
+		local adjustedDt = dt * productionSpeed * workerSpeed
+
+		if adjustedDt <= 0 then
+			return
+		end
+
 		for _, worker in self.Workers do
-			worker:Update(dt)
+			worker:Update(adjustedDt)
 		end
 	end)
 end

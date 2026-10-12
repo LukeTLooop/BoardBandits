@@ -6,6 +6,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EconomyService = require(ServerScriptService.Services.EconomyService)
+local ModifierService = require(ServerScriptService.Services.ModifierService)
 
 -- Classes --
 local Worker = require(ServerScriptService.Classes.Worker)
@@ -441,11 +442,18 @@ function Factory.TrySellItem(self: Factory, itemId: string): boolean
 		return false
 	end
 
-	if not self:RemoveItem(itemId, 1) then
+	-- Apply event income bonuses at POS, not at collection
+	local multiplier = ModifierService.GetModifier("IncomeMultiplier")
+	local cashEarned = math.floor(itemDefinition.SellPrice * multiplier + 0.5)
+	if cashEarned == math.huge or cashEarned < 0 then
+		warn(`[FACTORY] Invalid sale earnings for {itemId}`)
 		return false
 	end
 
-	local cashEarned = itemDefinition.SellPrice
+	-- Only remove inventory after earnings have been validated
+	if not self:RemoveItem(itemId, 1) then
+		return false
+	end
 
 	self:AddPendingCash(cashEarned)
 

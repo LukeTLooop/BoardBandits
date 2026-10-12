@@ -9,7 +9,8 @@ export type EventContext = {
 	OwnerId: string,
 
 	AddCleanup: (self: EventContext, callback: () -> ()) -> (),
-	SetModifier: (self: EventContext, preset: string, priority: number) -> (),
+	SetModifier: (self: EventContext, name: string, value: number, priority: number?) -> (),
+	SetEnvironment: (self: EventContext, preset: string, priority: number?) -> (),
 	SetMusic: (self: EventContext, track: string, priority: number?) -> (),
 }
 

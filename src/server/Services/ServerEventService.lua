@@ -212,7 +212,7 @@ function ServerEventService:StopEvent(id: string, reason: StopReason?): (boolean
 	return true, nil
 end
 
-function ServerEventService:StopAll(reason: StopReason?)
+function ServerEventService.StopAll(reason: StopReason?)
 	local ids: { string } = {}
 
 	for id in activeEvents do
@@ -220,7 +220,7 @@ function ServerEventService:StopAll(reason: StopReason?)
 	end
 
 	for _, id in ids do
-		self:StopEvent(id, reason or "Manual")
+		ServerEventService:StopEvent(id, reason or "Manual")
 	end
 end
 

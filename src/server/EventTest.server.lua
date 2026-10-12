@@ -1,6 +1,11 @@
 --!strict
 -- Event Test
 
+local ENABLE_EVENT_TESTS = false
+if not ENABLE_EVENT_TESTS then
+	return
+end
+
 -- Services --
 local ServerEventService = require(script.Parent.Services.ServerEventService)
 local ModifierService = require(script.Parent.Services.ModifierService)

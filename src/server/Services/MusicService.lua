@@ -27,7 +27,7 @@ if not tracksFolder then
 	tracksFolder.Parent = SoundService
 end
 
-assert(tracksFolder:IsA("Folder", "MusicTracks must be a Folder!"))
+assert(tracksFolder:IsA("Folder"), "MusicTracks must be a Folder!")
 
 local runtimeFolder = Instance.new("Folder")
 runtimeFolder.Name = "RuntimeMusic"

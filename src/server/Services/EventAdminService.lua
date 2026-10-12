@@ -224,7 +224,7 @@ local function ListSchedules(): { string }
 		table.insert(result, "Global schedules: synchronizing.")
 	end
 
-	if count == 0 then
+	if count == 0 and GlobalEventService:HasSynchronized() then
 		table.insert(result, "No known pending schedules.")
 	end
 
@@ -323,16 +323,26 @@ function EventAdminService:Execute(player: Player, rawCommand: string): { string
 			return { `Stopped server event: {id}` }
 		end
 
-		local success, err = GlobalEventService:StopGlobalEvent(id)
+		local success: boolean
+		local err: string?
+		if action == "cancel" then
+			success, err = GlobalEventService:CancelScheduledGlobalEvent(id)
+		else
+			success, err = GlobalEventService:StopGlobalEvent(id)
+		end
 
 		if not success then
 			warn(`[EventAdmin] Global stop/cancel failed: {tostring(err)}`)
-			return { "Global operation failed. Check server logs." }
+			return {
+				if action == "cancel"
+					then `Cancel failed: {tostring(err)}`
+					else "Global operation failed. Check server logs.",
+			}
 		end
 
-		print(`[EventAdmin] {player.UserId} stopped/canceled global event {id}`)
+		print(`[EventAdmin] {player.UserId} {action} global event {id}`)
 
-		return { `Stopped or canceled global event: {id}` }
+		return { if action == "cancel" then `Cancelled global schedule: {id}` else `Stopped global event: {id}` }
 	end
 
 	if action == "start" and #args ~= 4 and #args ~= 5 then

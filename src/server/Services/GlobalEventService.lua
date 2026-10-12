@@ -56,6 +56,7 @@ readOptions.UseCache = false
 
 -- State --
 local scheduledWake: thread? = nil
+local scheduledWakeVersion = 0
 local initialized = false
 local syncing = false
 local syncPending = false
@@ -71,6 +72,8 @@ local lastSnapshot: GlobalSnapshot = {
 }
 
 local localActivations: { [string]: LocalActivation } = {}
+
+local RequestSync: () -> ()
 
 -- Helpers --
 local function Now(): number
@@ -132,7 +135,9 @@ local function ApplySnapshot(snapshot: GlobalSnapshot)
 
 	local desiredEvents = CloneActiveEvents(snapshot, now)
 
-	-- Cancel previous scheduled wake-up
+	-- Invalidate any previous wake-up, including queued
+	scheduledWakeVersion += 1
+	local wakeVersion = scheduledWakeVersion
 	if scheduledWake then
 		task.cancel(scheduledWake)
 		scheduledWake = nil
@@ -158,8 +163,11 @@ local function ApplySnapshot(snapshot: GlobalSnapshot)
 		local delaySeconds = math.max(0, nextStartAt - Now())
 
 		scheduledWake = task.delay(delaySeconds, function()
+			if wakeVersion ~= scheduledWakeVersion then
+				return
+			end
 			scheduledWake = nil
-			ApplySnapshot(lastSnapshot)
+			RequestSync()
 		end)
 	end
 
@@ -174,7 +182,7 @@ local function ApplySnapshot(snapshot: GlobalSnapshot)
 		local currentOwner = ServerEventService:GetEventOwnerId(id)
 
 		if currentOwner == owned.OwnerId then
-			local success, err = ServerEventService.StopEvent(id, "Global")
+			local success, err = ServerEventService:StopEvent(id, "Global")
 
 			if not success then
 				warn(`[GlobalEventService] Failed to stop '{id}': {tostring(err)}`)
@@ -245,7 +253,7 @@ local function ApplySnapshot(snapshot: GlobalSnapshot)
 end
 
 -- Remote Synchronization --
-local function RequestSync()
+RequestSync = function()
 	if syncing then
 		syncPending = true
 		return
@@ -256,14 +264,13 @@ local function RequestSync()
 	repeat
 		syncPending = false
 
-		local success, result = pcall(function(): GlobalSnapshot
-			return ReadSnapshot()
+		local success, err = pcall(function(): boolean
+			ApplySnapshot(ReadSnapshot())
+			return true
 		end)
 
-		if success then
-			ApplySnapshot(result)
-		else
-			warn(`[GlobalEventService] Synchronization failed: {tostring(result)}`)
+		if not success then
+			warn(`[GlobalEventService] Synchronization failed: {tostring(err)}`)
 		end
 	until not syncPending
 
@@ -383,7 +390,7 @@ function GlobalEventService:StartGlobalEvent(
 		return globalStore:UpdateAsync(REGISTRY_KEY, function(raw: any): GlobalSnapshot?
 			local current = DecodeSnapshot(raw)
 
-			local events = CloneActiveEvents(current, startedAt)
+			local events = CloneActiveEvents(current, Now())
 
 			-- Only one global activation per event ID --
 			if events[id] ~= nil then
@@ -464,6 +471,48 @@ function GlobalEventService:StopGlobalEvent(id: string): (boolean, string?)
 	ApplySnapshot(result)
 	PublishChange(result.Revision)
 
+	return true, nil
+end
+
+-- Cancellation --
+function GlobalEventService:CancelScheduledGlobalEvent(id: string): (boolean, string?)
+	self:Initialize()
+
+	if not ServerEventService:IsEventRegistered(id) then
+		return false, `Unknown event: {id}`
+	end
+
+	local success, result = pcall(function(): GlobalSnapshot?
+		return globalStore:UpdateAsync(REGISTRY_KEY, function(raw: any): GlobalSnapshot?
+			local current = DecodeSnapshot(raw)
+			local now = Now()
+			local events = CloneActiveEvents(current, now)
+			local record = events[id]
+
+			if record == nil or record.StartedAt <= now then
+				return nil
+			end
+
+			events[id] = nil
+			return {
+				Revision = current.Revision + 1,
+				Events = events,
+			}
+		end) :: GlobalSnapshot?
+	end)
+
+	if not success then
+		task.spawn(RequestSync)
+		return false, `DataStore update failed: {tostring(result)}`
+	end
+
+	if result == nil then
+		task.spawn(RequestSync)
+		return false, `No pending global schedule for '{id}'`
+	end
+
+	ApplySnapshot(result)
+	PublishChange(result.Revision)
 	return true, nil
 end
 

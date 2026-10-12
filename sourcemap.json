@@ -2537,6 +2537,27 @@
                   "filePaths": [
                     "src/server/Events/Definitions/FactoryOverdrive.lua"
                   ]
+                },
+                {
+                  "name": "RushHour",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/server/Events/Definitions/RushHour.lua"
+                  ]
+                },
+                {
+                  "name": "StormWarning",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/server/Events/Definitions/StormWarning.lua"
+                  ]
+                },
+                {
+                  "name": "WorkerSurge",
+                  "className": "ModuleScript",
+                  "filePaths": [
+                    "src/server/Events/Definitions/WorkerSurge.lua"
+                  ]
                 }
               ]
             }

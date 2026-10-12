@@ -3,8 +3,11 @@
 
 -- Services --
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+
+local ModifierService = require(ServerScriptService.Services.ModifierService)
 
 -- Config --
 local ProductionStationConfig = require(ReplicatedStorage.Shared.Config.ProductionStationConfig)
@@ -20,10 +23,7 @@ local ProductionService = {}
 ProductionService.__index = ProductionService
 
 -- Types --
-export type ProductionSource =
-	"Manual" |
-	"Worker" |
-	"Assembler"
+export type ProductionSource = "Manual" | "Worker" | "Assembler"
 
 type ManualProductionJob = {
 	Player: Player,
@@ -38,10 +38,11 @@ type ManualProductionJob = {
 
 	StartedAt: number,
 	Duration: number,
+	Progress: number,
 }
 
 type ProductionServiceData = {
-	ActiveJobs: {[number]: ManualProductionJob},
+	ActiveJobs: { [number]: ManualProductionJob },
 
 	Started: boolean,
 }
@@ -55,11 +56,8 @@ function ProductionService.new(): ProductionService
 
 		Started = false,
 	}
-	
-	return setmetatable(
-		data,
-		ProductionService
-	)
+
+	return setmetatable(data, ProductionService)
 end
 
 -- Add Production Output --
@@ -76,38 +74,18 @@ function ProductionService.AddProductionOutput(
 	end
 
 	-- Add to factory inventory
-	factory:AddItem(
-		itemId,
-		amount
-	)
+	factory:AddItem(itemId, amount)
 
 	-- Broadcast production
-	GameEvents.ItemProduced:Fire(
-		factory.OwnerUserId,
-		factory.Id,
-		itemId,
-		amount
-	)
+	GameEvents.ItemProduced:Fire(factory.OwnerUserId, factory.Id, itemId, amount)
 
-	print(
-		"[PRODUCTION]",
-		source,
-		"produced",
-		amount,
-		itemId,
-		"in",
-		factory.Id,
-		workerId or ""
-	)
+	print("[PRODUCTION]", source, "produced", amount, itemId, "in", factory.Id, workerId or "")
 
 	return true
 end
 
 -- Is Producing --
-function ProductionService.IsProducing(
-	self: ProductionService,
-	plr: Player
-): boolean
+function ProductionService.IsProducing(self: ProductionService, plr: Player): boolean
 	return self.ActiveJobs[plr.UserId] ~= nil
 end
 
@@ -138,18 +116,15 @@ function ProductionService.StartManualProduction(
 	if factory:IsSlotOccupied(slotIndex) then
 		return false
 	end
-	
+
 	-- Valid station
 	local definition = ProductionStationConfig[stationId]
 	if not definition then
-		warn(
-			"[PRODUCTION] Unknown station:",
-			stationId
-		)
+		warn("[PRODUCTION] Unknown station:", stationId)
 
 		return false
 	end
-	
+
 	-- Start job
 	local job: ManualProductionJob = {
 		Player = plr,
@@ -157,31 +132,17 @@ function ProductionService.StartManualProduction(
 		Factory = factory,
 		StationId = stationId,
 		SlotIndex = slotIndex,
-		
+
 		OutputItem = definition.OutputItem,
 		OutputAmount = definition.OutputAmount,
-		
+
 		StartedAt = os.clock(),
 		Duration = definition.ProductionTime,
+		Progress = 0,
 	}
-	
+
 	self.ActiveJobs[plr.UserId] = job
 
-	print(
-		"[PRODUCTION]",
-		plr.Name,
-		"started",
-		stationId
-	)
-	
-	-- Complete async
-	task.delay(job.Duration, function()
-		self:CompleteManualProduction(
-			plr,
-			job
-		)
-	end)
-	
 	return true
 end
 
@@ -200,7 +161,7 @@ function ProductionService.CompleteManualProduction(
 	if currentJob ~= expectedJob then
 		return false
 	end
-	
+
 	-- Clear job
 	self.ActiveJobs[plr.UserId] = nil
 
@@ -208,10 +169,10 @@ function ProductionService.CompleteManualProduction(
 	if plr.Parent ~= Players then
 		return false
 	end
-	
+
 	-- Still owns same factory
 	local factory = expectedJob.Factory
-	
+
 	-- Ownership changed
 	if factory.OwnerUserId ~= plr.UserId then
 		return false
@@ -221,24 +182,15 @@ function ProductionService.CompleteManualProduction(
 	if factory:IsSlotOccupied(expectedJob.SlotIndex) then
 		return false
 	end
-	
+
 	-- Produce
-	self:AddProductionOutput(
-		factory,
-		expectedJob.OutputItem,
-		expectedJob.OutputAmount,
-		"Manual",
-		nil
-	)
+	self:AddProductionOutput(factory, expectedJob.OutputItem, expectedJob.OutputAmount, "Manual", nil)
 
 	return true
 end
 
 -- Cancel --
-function ProductionService.CancelManualProduction(
-	self: ProductionService,
-	plr: Player
-): ()
+function ProductionService.CancelManualProduction(self: ProductionService, plr: Player): ()
 	local job = self.ActiveJobs[plr.UserId]
 	if not job then
 		return
@@ -246,22 +198,30 @@ function ProductionService.CancelManualProduction(
 
 	self.ActiveJobs[plr.UserId] = nil
 
-	print(
-		"[PRODUCTION]",
-		plr.Name,
-		"cancelled",
-		job.StationId
-	)
+	print("[PRODUCTION]", plr.Name, "cancelled", job.StationId)
 end
 
 -- Start --
-function ProductionService.Start(
-	self: ProductionService
-): ()
+function ProductionService.Start(self: ProductionService): ()
 	if self.Started then
 		return
 	end
 	self.Started = true
+
+	-- Advance all active manual production jobs on one connection.
+	RunService.Heartbeat:Connect(function(dt: number)
+		local speed = ModifierService.GetModifier("ProductionSpeed")
+		if speed <= 0 then
+			return
+		end
+
+		for _, job in self.ActiveJobs do
+			job.Progress += dt * speed
+			if job.Progress >= job.Duration then
+				self:CompleteManualProduction(job.Player, job)
+			end
+		end
+	end)
 
 	-- Leaving
 	Players.PlayerRemoving:Connect(function(plr: Player)
