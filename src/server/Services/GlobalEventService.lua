@@ -55,6 +55,7 @@ local readOptions = Instance.new("DataStoreGetOptions")
 readOptions.UseCache = false
 
 -- State --
+local scheduledWake: thread? = nil
 local initialized = false
 local syncing = false
 local syncPending = false
@@ -130,6 +131,37 @@ local function ApplySnapshot(snapshot: GlobalSnapshot)
 	local now = Now()
 
 	local desiredEvents = CloneActiveEvents(snapshot, now)
+
+	-- Cancel previous scheduled wake-up
+	if scheduledWake then
+		task.cancel(scheduledWake)
+		scheduledWake = nil
+	end
+
+	local nextStartAt: number? = nil
+
+	-- Exclude events that haven't started yet
+	for id, record in desiredEvents do
+		if record.StartedAt <= now then
+			continue
+		end
+
+		if nextStartAt == nil or record.StartedAt < nextStartAt then
+			nextStartAt = record.StartedAt
+		end
+
+		desiredEvents[id] = nil
+	end
+
+	-- Wake server when next global event is due
+	if nextStartAt ~= nil then
+		local delaySeconds = math.max(0, nextStartAt - Now())
+
+		scheduledWake = task.delay(delaySeconds, function()
+			scheduledWake = nil
+			ApplySnapshot(lastSnapshot)
+		end)
+	end
 
 	-- Stop local activations that no longer match --
 	for id, owned in localActivations do
@@ -300,7 +332,8 @@ end
 function GlobalEventService:StartGlobalEvent(
 	id: string,
 	durationOverride: number?,
-	indefinitely: boolean?
+	indefinitely: boolean?,
+	scheduledStartAt: number?
 ): (boolean, string?)
 	self:Initialize()
 
@@ -322,7 +355,21 @@ function GlobalEventService:StartGlobalEvent(
 		return false, "Invalid event duration"
 	end
 
-	local startedAt = Now()
+	local now = Now()
+	local startedAt = scheduledStartAt or now
+
+	if scheduledStartAt ~= nil then
+		if
+			startedAt ~= startedAt
+			or startedAt == math.huge
+			or startedAt == -math.huge
+			or startedAt <= now
+			or startedAt - now > 604800 -- 7 days
+		then
+			return false, "Invalid scheduled start time"
+		end
+	end
+
 	local activationId = HttpService:GenerateGUID(false)
 
 	local record: GlobalEventRecord = {
@@ -366,6 +413,15 @@ function GlobalEventService:StartGlobalEvent(
 	PublishChange(result.Revision)
 
 	return true, nil
+end
+
+function GlobalEventService:ScheduleGlobalEvent(
+	id: string,
+	startsAt: number,
+	durationOverride: number?,
+	indefinitely: boolean?
+): (boolean, string?)
+	return self:StartGlobalEvent(id, durationOverride, indefinitely, startsAt)
 end
 
 -- Global Termination --
@@ -419,13 +475,27 @@ function GlobalEventService:IsGlobalEventActive(id: string): boolean
 		return false
 	end
 
-	return record.EndsAt == nil or record.EndsAt > Now()
+	local now = Now()
+	return record.StartedAt <= now and (record.EndsAt == nil or record.EndsAt > now)
+end
+
+function GlobalEventService:IsLocallyManaged(id: string): boolean
+	local owned = localActivations[id]
+	if not owned then
+		return false
+	end
+
+	return ServerEventService:GetEventOwnerId(id) == owned.OwnerId
 end
 
 function GlobalEventService:GetActiveGlobalEvents(): { GlobalEventInfo }
 	local result: { GlobalEventInfo } = {}
 
 	for id, record in lastSnapshot.Events do
+		if record.StartedAt > Now() then
+			continue
+		end
+
 		if record.EndsAt ~= nil and record.EndsAt <= Now() then
 			continue
 		end
@@ -440,6 +510,34 @@ function GlobalEventService:GetActiveGlobalEvents(): { GlobalEventInfo }
 
 	table.sort(result, function(a, b)
 		return a.Id < b.Id
+	end)
+
+	return result
+end
+
+function GlobalEventService:GetScheduledGlobalEvents(): { GlobalEventInfo }
+	local result: { GlobalEventInfo } = {}
+	local now = Now()
+
+	for id, record in lastSnapshot.Events do
+		if record.StartedAt <= now then
+			continue
+		end
+
+		table.insert(result, {
+			Id = id,
+			ActivationId = record.ActivationId,
+			StartedAt = record.StartedAt,
+			EndsAt = record.EndsAt,
+		})
+	end
+
+	table.sort(result, function(a, b)
+		if a.StartedAt == b.StartedAt then
+			return a.Id < b.Id
+		end
+
+		return a.StartedAt < b.StartedAt
 	end)
 
 	return result

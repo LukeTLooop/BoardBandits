@@ -2459,6 +2459,13 @@
               "filePaths": [
                 "src/server/Services/GlobalEventService.lua"
               ]
+            },
+            {
+              "name": "EventAdminService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/EventAdminService.lua"
+              ]
             }
           ]
         },
@@ -2547,6 +2554,26 @@
           "className": "Script",
           "filePaths": [
             "src/server/GlobalEvents.server.lua"
+          ]
+        },
+        {
+          "name": "Config",
+          "className": "Folder",
+          "children": [
+            {
+              "name": "EventAdminConfig",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Config/EventAdminConfig.lua"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "EventAdmin",
+          "className": "Script",
+          "filePaths": [
+            "src/server/EventAdmin.server.lua"
           ]
         }
       ]
@@ -2801,6 +2828,13 @@
                     }
                   ]
                 }
+              ]
+            },
+            {
+              "name": "EventAdminFeedback",
+              "className": "LocalScript",
+              "filePaths": [
+                "src/client/EventAdminFeedback.client.lua"
               ]
             }
           ]
