@@ -2452,6 +2452,13 @@
               "filePaths": [
                 "src/server/Services/ServerEventService.lua"
               ]
+            },
+            {
+              "name": "GlobalEventService",
+              "className": "ModuleScript",
+              "filePaths": [
+                "src/server/Services/GlobalEventService.lua"
+              ]
             }
           ]
         },
@@ -2533,6 +2540,13 @@
           "className": "Script",
           "filePaths": [
             "src/server/EventTest.server.lua"
+          ]
+        },
+        {
+          "name": "GlobalEvents",
+          "className": "Script",
+          "filePaths": [
+            "src/server/GlobalEvents.server.lua"
           ]
         }
       ]

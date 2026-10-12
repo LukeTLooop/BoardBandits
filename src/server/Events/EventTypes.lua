@@ -2,7 +2,7 @@
 -- Event Types
 
 -- Types --
-export type StopReason = "Manual" | "Expired" | "Shutdown"
+export type StopReason = "Manual" | "Expired" | "Shutdown" | "Global"
 
 export type EventContext = {
 	EventId: string,

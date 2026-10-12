@@ -78,7 +78,11 @@ function ServerEventService:RegisterEvent(definition: EventDefinition)
 end
 
 -- Activation --
-function ServerEventService:StartEvent(id: string, durationOverride: number?): (boolean, string?)
+function ServerEventService:StartEvent(
+	id: string,
+	durationOverride: number?,
+	indefinitely: boolean?
+): (boolean, string?)
 	local definition = definitions[id]
 	if not definition then
 		return false, `Unknown event: {id}`
@@ -88,7 +92,15 @@ function ServerEventService:StartEvent(id: string, durationOverride: number?): (
 		return false, `Event '{id}' is already running`
 	end
 
-	local duration = if durationOverride ~= nil then durationOverride else definition.Duration
+	local duration: number?
+	if indefinitely then
+		duration = nil
+	elseif durationOverride ~= nil then
+		duration = durationOverride
+	else
+		duration = definition.Duration
+	end
+
 	if duration ~= nil and not IsValidDuration(duration) then
 		return false, "Event duration must be positive and finite"
 	end
@@ -216,6 +228,26 @@ end
 function ServerEventService:IsEventActive(id: string): boolean
 	local runtime = activeEvents[id]
 	return runtime ~= nil and runtime.Status == "Active"
+end
+
+function ServerEventService:IsEventRegistered(id: string): boolean
+	return definitions[id] ~= nil
+end
+
+function ServerEventService:GetEventOwnerId(id: string): string?
+	local runtime = activeEvents[id]
+	if not runtime then
+		return nil
+	end
+
+	return runtime.Scope.Context.OwnerId
+end
+
+function ServerEventService:GetDefaultDuration(id: string): number?
+	local definition = definitions[id]
+	assert(definition ~= nil, `Unknown event: {id}`)
+
+	return definition.Duration
 end
 
 function ServerEventService:GetActiveEvents(): { ActiveEventInfo }
