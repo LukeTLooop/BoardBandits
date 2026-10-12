@@ -62,7 +62,7 @@ end
 
 -- Add Production Output --
 function ProductionService.AddProductionOutput(
-	self: ProductionService,
+	_self: ProductionService,
 	factory: Factory.Factory,
 	itemId: string,
 	amount: number,
